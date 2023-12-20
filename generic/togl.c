@@ -14,6 +14,7 @@
 #endif
 #include <string.h>
 #include "tk.h"
+#include "togl.h"
 
 /*
  * A data structure of the following type is kept for each togl widget
@@ -129,10 +130,6 @@ ToglObjCmd(
 	Tcl_WrongNumArgs(interp, 1, objv, "pathName ?-option value ...?");
 	return TCL_ERROR;
     }
-
-    char *widgetPath = Tcl_GetString(objv[1]);
-    printf("Togl windows path is %s at %p\n", widgetPath, widgetPath);
-    printf("interp is %p\n", interp);
     tkwin = Tk_CreateWindowFromPath(interp, Tk_MainWindow(interp),
     	    Tcl_GetString(objv[1]), NULL);
     if (tkwin == NULL) {
@@ -612,8 +609,6 @@ DLLEXPORT int
 Togl_Init(
     Tcl_Interp* interp)		/* Tcl interpreter */
 {
-    Tcl_CmdInfo info;
-
     if (Tcl_InitStubs(interp, "9.0", 0) == NULL) {
 	return TCL_ERROR;
     }
@@ -621,9 +616,6 @@ Togl_Init(
     if (Tk_InitStubs(interp, "9.0", 0) == NULL) {
         return TCL_ERROR;
     }
-
-    printf("Togl_Init providing Togl with interp at %p\n", interp);
-
     if (Tcl_PkgProvideEx(interp, PACKAGE_NAME, PACKAGE_VERSION, NULL) != TCL_OK) {
 	return TCL_ERROR;
     }

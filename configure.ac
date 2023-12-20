@@ -100,9 +100,15 @@ else
     if test "${TEA_WINDOWINGSYSTEM}" = "x11"; then
         TEA_ADD_SOURCES([toglUnixGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/unix\"])
-    else	
+    else
         TEA_ADD_SOURCES([toglMacOSGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/macosx\"])
+        # On macOS compile Togl source files as objective C (-x objective-c)
+        # because they need access to the OpenGL framework and the NSView class.
+        TEA_ADD_CFLAGS([-x objective-c])
+        # Apple has deprecated OpenGL:
+        TEA_ADD_CFLAGS([-Wno-deprecated-declarations])
+	
     fi
 fi
 
