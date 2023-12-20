@@ -191,7 +191,10 @@ VALGRINDARGS	= --tool=memcheck --num-callers=8 --leak-resolution=high \
 # for the BINARIES that you specified above have already been done.
 #========================================================================
 
-all: binaries libraries doc
+all: $(srcdir)/build binaries libraries doc
+
+$(srcdir)/build:
+	mkdir -p $(srcdir)/build
 
 #========================================================================
 # The binaries target builds executable programs, Windows .dll's, unix
@@ -308,12 +311,12 @@ $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
 # As necessary, add $(srcdir):$(srcdir)/compat:....
 #========================================================================
 
-VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win:$(srcdir)/macosx
+VPATH = $(srcdir):$(srcdir)/build:$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win:$(srcdir)/macosx
 
-.c.@OBJEXT@:
+build/%.@OBJEXT@: %.c
 	$(COMPILE) -c $< -o $@
 
-tclsample.@OBJEXT@:	sampleUuid.h
+$(srcdir)/build/tclsample.@OBJEXT@:	sampleUuid.h
 
 $(srcdir)/manifest.uuid:
 	printf "git-" >$(srcdir)/manifest.uuid
@@ -389,6 +392,7 @@ dist: dist-clean $(srcdir)/manifest.uuid
 clean:
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
+	-rm -rf $(srcdir)/build
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean: clean

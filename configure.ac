@@ -42,8 +42,8 @@ TEA_LOAD_TCLCONFIG
 # Load the tkConfig.sh file if necessary (Tk extension)
 #--------------------------------------------------------------------
 
-#TEA_PATH_TKCONFIG
-#TEA_LOAD_TKCONFIG
+TEA_PATH_TKCONFIG
+TEA_LOAD_TKCONFIG
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.
@@ -71,7 +71,7 @@ TEA_SETUP_COMPILER
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES([sample.c tclsample.c])
+TEA_ADD_SOURCES([togl.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([])
@@ -92,16 +92,18 @@ TEA_ADD_TCL_SOURCES([])
 #--------------------------------------------------------------------
 
 #CLEANFILES="$CLEANFILES pkgIndex.tcl"
-if test "${TEA_PLATFORM}" = "windows" ; then
-    # Ensure no empty if clauses
-    :
-    #TEA_ADD_SOURCES([win/winFile.c])
-    #TEA_ADD_INCLUDES([-I\"$(${CYGPATH} ${srcdir}/win)\"])
+
+if test "${TEA_PLATFORM}" == "windows" ; then
+    TEA_ADD_SOURCES([toglWinGL.c])
+    TEA_ADD_INCLUDES([-I\"${srcdir}/win\"])
 else
-    # Ensure no empty else clauses
-    :
-    #TEA_ADD_SOURCES([unix/unixFile.c])
-    #TEA_ADD_LIBS([-lsuperfly])
+    if test "${TEA_WINDOWINGSYSTEM}" = "x11"; then
+        TEA_ADD_SOURCES([toglUnixGL.c])
+        TEA_ADD_INCLUDES([-I\"${srcdir}/unix\"])
+    else	
+        TEA_ADD_SOURCES([toglMacOSGL.c])
+        TEA_ADD_INCLUDES([-I\"${srcdir}/macosx\"])
+    fi
 fi
 
 #--------------------------------------------------------------------
@@ -114,11 +116,13 @@ fi
 #--------------------------------------------------------------------
 
 TEA_PUBLIC_TCL_HEADERS
-#TEA_PRIVATE_TCL_HEADERS
+TEA_PRIVATE_TCL_HEADERS
 
 #TEA_PUBLIC_TK_HEADERS
 #TEA_PRIVATE_TK_HEADERS
 #TEA_PATH_X
+
+TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/9.0/Headers\"])
 
 #--------------------------------------------------------------------
 # Check whether --enable-threads or --disable-threads was given.

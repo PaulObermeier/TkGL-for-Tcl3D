@@ -2733,6 +2733,7 @@ The PACKAGE_NAME variable must be defined by your TEA configure.ac])
 	    ;;
     esac
 
+    TEA_WINDOWINGSYSTEM=this_is_a_test
     # Check if exec_prefix is set. If not use fall back to prefix.
     # Note when adjusted, so that TEA_PREFIX can correct for this.
     # This is needed for recursive configures, since autoconf propagates
@@ -2813,7 +2814,7 @@ AC_DEFUN([TEA_ADD_SOURCES], [
 		else
 		    j="`echo $i | sed -e 's/\.[[^.]]*$//'`.\${OBJEXT}"
 		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
+		PKG_OBJECTS="$PKG_OBJECTS ${srcdir}/build/$j"
 		;;
 	esac
     done
