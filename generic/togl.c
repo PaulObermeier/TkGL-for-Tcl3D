@@ -17,81 +17,12 @@
 #include "togl.h"
 
 /*
- * A data structure of the following type is kept for each togl widget
- * managed by this file:
- */
-
-typedef struct {
-    Tk_Window tkwin;		/* Window that embodies the togl. NULL means
-				 * window has been deleted but widget record
-				 * hasn't been cleaned up yet. */
-    Display *display;		/* X's token for the window's display. */
-    Tcl_Interp *interp;		/* Interpreter associated with widget. */
-    Tcl_Command widgetCmd;	/* Token for togl's widget command. */
-    Tk_OptionTable optionTable;	/* Token representing the configuration
-				 * specifications. */
-    Tcl_Obj *xPtr, *yPtr;	/* Position of togl's upper-left corner
-				 * within widget. */
-    int x, y;
-    Tcl_Obj *sizeObjPtr;	/* Width and height of togl. */
-
-    /*
-     * Information used when displaying widget:
-     */
-
-    Tcl_Obj *borderWidthPtr;	/* Width of 3-D border around whole widget. */
-    Tcl_Obj *bgBorderPtr;
-    Tcl_Obj *fgBorderPtr;
-    Tcl_Obj *reliefPtr;
-    GC gc;			/* Graphics context for copying from
-				 * off-screen pixmap onto screen. */
-    Tcl_Obj *doubleBufferPtr;	/* Non-zero means double-buffer redisplay with
-				 * pixmap; zero means draw straight onto the
-				 * display. */
-    int updatePending;		/* Non-zero means a call to ToglDisplay has
-				 * already been scheduled. */
-} Togl;
-
-/*
- * Information used for argv parsing.
- */
-
-static const Tk_OptionSpec toglOptionSpecs[] = {
-    {TK_OPTION_BORDER, "-background", "background", "Background",
-	    "#d9d9d9", offsetof(Togl, bgBorderPtr), TCL_INDEX_NONE, 0,
-	    "white", 0},
-    {TK_OPTION_SYNONYM, "-bd", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
-	    "-borderwidth", 0},
-    {TK_OPTION_SYNONYM, "-bg", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
-	    "-background", 0},
-    {TK_OPTION_PIXELS, "-borderwidth", "borderWidth", "BorderWidth",
-	    "2", offsetof(Togl, borderWidthPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    {TK_OPTION_BOOLEAN, "-dbl", "doubleBuffer", "DoubleBuffer",
-	    "1", offsetof(Togl, doubleBufferPtr), TCL_INDEX_NONE, 0 , NULL, 0},
-    {TK_OPTION_SYNONYM, "-fg", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
-	    "-foreground", 0},
-    {TK_OPTION_BORDER, "-foreground", "foreground", "Foreground",
-	    "#b03060", offsetof(Togl, fgBorderPtr), TCL_INDEX_NONE, 0,
-	    "black", 0},
-    {TK_OPTION_PIXELS, "-posx", "posx", "PosX", "0",
-	    offsetof(Togl, xPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    {TK_OPTION_PIXELS, "-posy", "posy", "PosY", "0",
-	    offsetof(Togl, yPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    {TK_OPTION_RELIEF, "-relief", "relief", "Relief",
-	    "raised", offsetof(Togl, reliefPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    {TK_OPTION_PIXELS, "-size", "size", "Size", "20",
-	    offsetof(Togl, sizeObjPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    {TK_OPTION_END, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 0}
-};
-
-/*
  * Forward declarations for procedures defined later in this file:
  */
 
 static void		ToglDeletedProc(void *clientData);
 static int		ToglConfigure(Tcl_Interp *interp, Togl *toglPtr);
 static void		ToglDisplay(void *clientData);
-static void		KeepInWindow(Togl *toglPtr);
 static void		ToglObjEventProc(void *clientData,
 			    XEvent *eventPtr);
 static int		ToglWidgetObjCmd(void *clientData,
@@ -160,7 +91,6 @@ ToglObjCmd(
     toglPtr->widgetCmd = Tcl_CreateObjCommand(interp,
 	    Tk_PathName(toglPtr->tkwin), ToglWidgetObjCmd, toglPtr,
 	    ToglDeletedProc);
-    toglPtr->gc = NULL;
     toglPtr->optionTable = optionTable;
 
     if (Tk_InitOptions(interp, toglPtr, optionTable, tkwin)
@@ -314,7 +244,12 @@ ToglConfigure(
 {
     int borderWidth;
     Tk_3DBorder bgBorder;
-    int doubleBuffer;
+    //    int doubleBuffer;
+    int width;
+    int height;
+
+    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->widthObjPtr, &width);
+    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->heightObjPtr, &height);
 
     /*
      * Set the background for the window and create a graphics context for use
@@ -325,21 +260,12 @@ ToglConfigure(
 	    toglPtr->bgBorderPtr);
     Tk_SetWindowBackground(toglPtr->tkwin,
 	    Tk_3DBorderColor(bgBorder)->pixel);
-    Tcl_GetBooleanFromObj(NULL, toglPtr->doubleBufferPtr, &doubleBuffer);
-    if ((toglPtr->gc == NULL) && doubleBuffer) {
-	XGCValues gcValues;
-	gcValues.function = GXcopy;
-	gcValues.graphics_exposures = False;
-	toglPtr->gc = Tk_GetGC(toglPtr->tkwin,
-		GCFunction|GCGraphicsExposures, &gcValues);
-    }
-
     /*
      * Register the desired geometry for the window. Then arrange for the
      * window to be redisplayed.
      */
 
-    Tk_GeometryRequest(toglPtr->tkwin, 200, 150);
+    Tk_GeometryRequest(toglPtr->tkwin, width, height);
     Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->borderWidthPtr,
 	    &borderWidth);
     Tk_SetInternalBorder(toglPtr->tkwin, borderWidth);
@@ -347,7 +273,6 @@ ToglConfigure(
 	Tcl_DoWhenIdle(ToglDisplay, toglPtr);
 	toglPtr->updatePending = 1;
     }
-    KeepInWindow(toglPtr);
     return TCL_OK;
 }
 
@@ -382,7 +307,7 @@ ToglObjEventProc(
 	    toglPtr->updatePending = 1;
 	}
     } else if (eventPtr->type == ConfigureNotify) {
-	KeepInWindow(toglPtr);
+	//KeepInWindow(toglPtr);
 	if (!toglPtr->updatePending) {
 	    Tcl_DoWhenIdle(ToglDisplay, toglPtr);
 	    toglPtr->updatePending = 1;
@@ -391,9 +316,9 @@ ToglObjEventProc(
 	if (toglPtr->tkwin != NULL) {
 	    Tk_FreeConfigOptions((char *) toglPtr, toglPtr->optionTable,
 		    toglPtr->tkwin);
-	    if (toglPtr->gc != NULL) {
-		Tk_FreeGC(toglPtr->display, toglPtr->gc);
-	    }
+	    //	    if (toglPtr->gc != NULL) {
+	    //	Tk_FreeGC(toglPtr->display, toglPtr->gc);
+	    //}
 	    toglPtr->tkwin = NULL;
 	    Tcl_DeleteCommandFromToken(toglPtr->interp,
 		    toglPtr->widgetCmd);
@@ -466,30 +391,17 @@ ToglDisplay(
 {
     Togl *toglPtr = (Togl *)clientData;
     Tk_Window tkwin = toglPtr->tkwin;
-    Pixmap pm = None;
     Drawable d;
-    int borderWidth, size, relief;
+    int borderWidth, width, height, relief;
     Tk_3DBorder bgBorder, fgBorder;
-    int doubleBuffer;
-
+    
     toglPtr->updatePending = 0;
     if (!Tk_IsMapped(tkwin)) {
 	return;
     }
-
-    /*
-     * Create a pixmap for double-buffering, if necessary.
-     */
-
-    Tcl_GetBooleanFromObj(NULL, toglPtr->doubleBufferPtr, &doubleBuffer);
-    if (doubleBuffer) {
-	pm = Tk_GetPixmap(Tk_Display(tkwin), Tk_WindowId(tkwin),
-		Tk_Width(tkwin), Tk_Height(tkwin),
-		DefaultDepthOfScreen(Tk_Screen(tkwin)));
-	d = pm;
-    } else {
-	d = Tk_WindowId(tkwin);
-    }
+    d = Tk_WindowId(tkwin);
+    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->widthObjPtr, &width);
+    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->heightObjPtr, &height);
 
     /*
      * Redraw the widget's background and border.
@@ -504,79 +416,18 @@ ToglDisplay(
 	    Tk_Height(tkwin), borderWidth, relief);
 
     /*
-     * Display the togl.
+     * Display the togl widget.
      */
-
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->sizeObjPtr, &size);
     fgBorder = Tk_Get3DBorderFromObj(toglPtr->tkwin,
 	    toglPtr->fgBorderPtr);
-    Tk_Fill3DRectangle(tkwin, d, fgBorder, toglPtr->x, toglPtr->y, size,
-	    size, borderWidth, TK_RELIEF_RAISED);
 
-    /*
-     * If double-buffered, copy to the screen and release the pixmap.
-     */
+    Tk_Fill3DRectangle(tkwin, d, fgBorder, toglPtr->x, toglPtr->y, width,
+           height, borderWidth, TK_RELIEF_RAISED);
 
-    if (doubleBuffer) {
-	XCopyArea(Tk_Display(tkwin), pm, Tk_WindowId(tkwin), toglPtr->gc,
-		0, 0, (unsigned) Tk_Width(tkwin), (unsigned) Tk_Height(tkwin),
-		0, 0);
-	Tk_FreePixmap(Tk_Display(tkwin), pm);
-    }
+    Tk_Fill3DRectangle(tkwin, d, fgBorder, toglPtr->x, toglPtr->y, width,
+	    height, borderWidth, TK_RELIEF_RAISED);
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * KeepInWindow --
- *
- *	Adjust the position of the togl if necessary to keep it in the
- *	widget's window.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	The x and y position of the togl are adjusted if necessary to keep
- *	the togl in the window.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-KeepInWindow(
-    Togl *toglPtr)	/* Pointer to widget record. */
-{
-    int i, bd, relief;
-    int borderWidth, size;
-
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->borderWidthPtr,
-	    &borderWidth);
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->xPtr,
-	    &toglPtr->x);
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->yPtr,
-	    &toglPtr->y);
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->sizeObjPtr, &size);
-    Tk_GetReliefFromObj(NULL, toglPtr->reliefPtr, &relief);
-    bd = 0;
-    if (relief != TK_RELIEF_FLAT) {
-	bd = borderWidth;
-    }
-    i = (Tk_Width(toglPtr->tkwin) - bd) - (toglPtr->x + size);
-    if (i < 0) {
-	toglPtr->x += i;
-    }
-    i = (Tk_Height(toglPtr->tkwin) - bd) - (toglPtr->y + size);
-    if (i < 0) {
-	toglPtr->y += i;
-    }
-    if (toglPtr->x < bd) {
-	toglPtr->x = bd;
-    }
-    if (toglPtr->y < bd) {
-	toglPtr->y = bd;
-    }
-}
 
 /*
  *----------------------------------------------------------------------

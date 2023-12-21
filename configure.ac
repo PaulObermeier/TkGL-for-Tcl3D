@@ -103,12 +103,11 @@ else
     else
         TEA_ADD_SOURCES([toglMacOSGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/macosx\"])
-        # On macOS compile Togl source files as objective C (-x objective-c)
-        # because they need access to the OpenGL framework and the NSView class.
+        # On macOS, compile Togl source files as objective C because they need
+        # access to the OpenGL framework and the NSView class.
         TEA_ADD_CFLAGS([-x objective-c])
-        # Apple has deprecated OpenGL:
-        TEA_ADD_CFLAGS([-Wno-deprecated-declarations])
-	
+        # Apple has deprecated OpenGL.  We don't need to hear about it:
+        TEA_ADD_CFLAGS([-Wno-deprecated-declarations])	
     fi
 fi
 
@@ -122,13 +121,16 @@ fi
 #--------------------------------------------------------------------
 
 TEA_PUBLIC_TCL_HEADERS
-TEA_PRIVATE_TCL_HEADERS
+#TEA_PRIVATE_TCL_HEADERS
 
 #TEA_PUBLIC_TK_HEADERS
 #TEA_PRIVATE_TK_HEADERS
 #TEA_PATH_X
 
+# The Tk macros above don't seem to work correctly for us.
+# Edit these if your Tk installation is somewhere else.
 TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/9.0/Headers\"])
+TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/9.0/PrivateHeaders\"])
 
 #--------------------------------------------------------------------
 # Check whether --enable-threads or --disable-threads was given.
