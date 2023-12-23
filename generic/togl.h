@@ -17,7 +17,7 @@ typedef struct Togl_PackageGlobals Togl_PackageGlobals;
 struct Togl_PackageGlobals
 {
     Tk_OptionTable optionTable; /* Used to parse options */
-    ToglXX   *toglHead;           /* Head of linked list of all Togl widgets */
+    ToglXX   *toglHead;         /* Head of linked list of all Togl widgets */
     int     nextContextTag;     /* Used to assign similar context tags */
 };
 
@@ -104,7 +104,7 @@ typedef struct Togl {
     const char *shareContext;   /* name (ident) to share OpenGL context with */
 
     const char *ident;          /* User's identification string */
-    void    *clientData;      /* Pointer to user data */
+    void    *clientData;        /* Pointer to user data */
 
     Bool    UpdatePending;      /* Should normal planes be redrawn? */
 
@@ -115,16 +115,16 @@ typedef struct Togl {
     Tcl_Obj *timerProc;         /* Callback when widget is idle */
 
     Window  overlayWindow;      /* The overlay window, or 0 */
-    Tcl_Obj *overlayDisplayProc;        /* Overlay redraw proc */
-    Bool    overlayUpdatePending;       /* Should overlay be redrawn? */
-    Colormap overlayCmap;       /* colormap for overlay is created */
-    int     overlayTransparentPixel;    /* transparent pixel */
+    Tcl_Obj *overlayDisplayProc;     /* Overlay redraw proc */
+    Bool    overlayUpdatePending;    /* Should overlay be redrawn? */
+    Colormap overlayCmap;            /* colormap for overlay is created */
+    int     overlayTransparentPixel; /* transparent pixel */
     Bool    overlayIsMapped;
 
     GLfloat *redMap;            /* Index2RGB Maps for Color index modes */
     GLfloat *greenMap;
     GLfloat *blueMap;
-    GLint   mapSize;            /* = Number of indices in our Togl */
+    GLint   mapSize;            /* Number of indices in our color map */
     int     currentStereoBuffer;
     int     badWindow;          /* true when Togl_MakeWindow fails or should
                                  * create a dummy window */
@@ -167,6 +167,39 @@ typedef struct Togl {
 #define DEFAULT_FONTNAME	"Courier"
 #define DEFAULT_TIME		"1"
 
+/* 
+ * Stereo techniques:
+ *      Only the native method uses OpenGL quad-buffered stereo.
+ *      All need the eye offset and eye distance set properly.
+ */
+/* These versions need one eye drawn */
+#  define TOGL_STEREO_NONE		0
+#  define TOGL_STEREO_LEFT_EYE		1       /* just the left eye */
+#  define TOGL_STEREO_RIGHT_EYE		2       /* just the right eye */
+#  define TOGL_STEREO_ONE_EYE_MAX	127
+/* These versions need both eyes drawn */
+#  define TOGL_STEREO_NATIVE		128
+#  define TOGL_STEREO_SGIOLDSTYLE	129     /* interlaced, SGI API */
+#  define TOGL_STEREO_ANAGLYPH		130
+#  define TOGL_STEREO_CROSS_EYE		131
+#  define TOGL_STEREO_WALL_EYE		132
+#  define TOGL_STEREO_DTI		133     /* dti3d.com */
+#  define TOGL_STEREO_ROW_INTERLEAVED	134     /* www.vrex.com/developer/interleave.htm */
+
+/*
+ * The following table defines the legal values for the -profile
+ * option, which is only used in toglNSOpenGL.c.
+ */
+
+static const char *const profileStrings[] = {
+    "legacy", "3_2", "4_1", NULL
+};
+
+
+/* Declarations of custom option structs. */
+static Tk_ObjCustomOption stereoOption;
+static Tk_ObjCustomOption wideIntOption;
+
 static Tk_OptionSpec toglOptionSpecs[] = {
   // From the square widget.  Remove most of these.
     {TK_OPTION_BORDER, "-background", "background", "Background",
@@ -180,137 +213,117 @@ static Tk_OptionSpec toglOptionSpecs[] = {
 	    "2", offsetof(Togl, borderWidthPtr), TCL_INDEX_NONE, 0, NULL, 0},
     {TK_OPTION_SYNONYM, "-fg", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
 	    "-foreground", 0},
-    {TK_OPTION_BORDER, "-foreground", "foreground", "Foreground",
-	    "#b03060", offsetof(Togl, fgBorderPtr), TCL_INDEX_NONE, 0,
-	    "black", 0},
+    {TK_OPTION_BORDER, "-foreground", "foreground", "Foreground", "#b03060",
+     offsetof(Togl, fgBorderPtr), TCL_INDEX_NONE, 0, "black", 0},
     {TK_OPTION_PIXELS, "-posx", "posx", "PosX", "0",
 	    offsetof(Togl, xPtr), TCL_INDEX_NONE, 0, NULL, 0},
     {TK_OPTION_PIXELS, "-posy", "posy", "PosY", "0",
 	    offsetof(Togl, yPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    {TK_OPTION_RELIEF, "-relief", "relief", "Relief",
-	    "raised", offsetof(Togl, reliefPtr), TCL_INDEX_NONE, 0, NULL, 0},
     /*==========================================*/
     {TK_OPTION_PIXELS, "-width", "width", "Width", DEFAULT_WIDTH,
      offsetof(Togl, widthObjPtr), TCL_INDEX_NONE, 0, NULL, GEOMETRY_MASK},
     {TK_OPTION_PIXELS, "-height", "height", "Height", DEFAULT_HEIGHT,
      offsetof(Togl, heightObjPtr), TCL_INDEX_NONE, 0, NULL, GEOMETRY_MASK},
-#if 0
-    {TK_OPTION_BOOLEAN, "-rgba", "rgba", "Rgba",
-            "true", -1, Tk_Offset(Togl, RgbaFlag), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-redsize", "redsize", "RedSize",
-            "1", -1, Tk_Offset(Togl, RgbaRed), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-greensize", "greensize", "GreenSize",
-            "1", -1, Tk_Offset(Togl, RgbaGreen), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-bluesize", "bluesize", "BlueSize",
-            "1", -1, Tk_Offset(Togl, RgbaBlue), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-double", "double", "Double",
-            "false", -1, Tk_Offset(Togl, DoubleFlag), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-depth", "depth", "Depth",
-            "false", -1, Tk_Offset(Togl, DepthFlag), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-depthsize", "depthsize", "DepthSize",
-            "1", -1, Tk_Offset(Togl, DepthSize), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-accum", "accum", "Accum",
-            "false", -1, Tk_Offset(Togl, AccumFlag), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-accumredsize", "accumredsize", "AccumRedSize",
-            "1", -1, Tk_Offset(Togl, AccumRed), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-accumgreensize", "accumgreensize",
-                "AccumGreenSize",
-            "1", -1, Tk_Offset(Togl, AccumGreen), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-accumbluesize", "accumbluesize",
-                "AccumBlueSize",
-            "1", -1, Tk_Offset(Togl, AccumBlue), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-accumalphasize", "accumalphasize",
-                "AccumAlphaSize",
-            "1", -1, Tk_Offset(Togl, AccumAlpha), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-alpha", "alpha", "Alpha",
-            "false", -1, Tk_Offset(Togl, AlphaFlag), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-alphasize", "alphasize", "AlphaSize",
-            "1", -1, Tk_Offset(Togl, AlphaSize), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-stencil", "stencil", "Stencil",
-            "false", -1, Tk_Offset(Togl, StencilFlag), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-stencilsize", "stencilsize", "StencilSize",
-            "1", -1, Tk_Offset(Togl, StencilSize), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_INT, "-auxbuffers", "auxbuffers", "AuxBuffers",
-            "0", -1, Tk_Offset(Togl, AuxNumber), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-privatecmap", "privateCmap", "PrivateCmap",
-                "false", -1, Tk_Offset(Togl, PrivateCmapFlag), 0, NULL,
-            FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-overlay", "overlay", "Overlay",
-            "false", -1, Tk_Offset(Togl, OverlayFlag), 0, NULL, OVERLAY_MASK},
-    {TK_OPTION_CUSTOM, "-stereo", "stereo", "Stereo",
-                "", -1, Tk_Offset(Togl, Stereo), 0,
-            (ClientData) &stereoOption, STEREO_FORMAT_MASK},
-    {TK_OPTION_DOUBLE, "-eyeseparation", "eyeseparation",
-                "EyeSeparation",
-            "2.0", -1, Tk_Offset(Togl, EyeSeparation), 0, NULL, STEREO_MASK},
-    {TK_OPTION_DOUBLE, "-convergence", "convergence", "Convergence",
-            "35.0", -1, Tk_Offset(Togl, Convergence), 0, NULL, STEREO_MASK},
-    {TK_OPTION_CURSOR, "-cursor", "cursor", "Cursor",
-                "", -1, Tk_Offset(Togl, Cursor), TK_OPTION_NULL_OK, NULL,
-            CURSOR_MASK},
-    {TK_OPTION_INT, "-setgrid", "setGrid", "SetGrid",
-            "0", -1, Tk_Offset(Togl, SetGrid), 0, NULL, GEOMETRY_MASK},
-    {TK_OPTION_INT, "-time", "time", "Time",
-                DEFAULT_TIME, -1, Tk_Offset(Togl, TimerInterval), 0, NULL,
-            TIMER_MASK},
-    {TK_OPTION_STRING, "-sharelist", "sharelist", "ShareList",
-            NULL, -1, Tk_Offset(Togl, ShareList), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_STRING, "-sharecontext", "sharecontext",
-                "ShareContext", NULL,
-            -1, Tk_Offset(Togl, ShareContext), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_STRING, "-ident", "ident", "Ident",
-            DEFAULT_IDENT, -1, Tk_Offset(Togl, Ident), 0, NULL, 0},
-    {TK_OPTION_BOOLEAN, "-indirect", "indirect", "Indirect",
-            "false", -1, Tk_Offset(Togl, Indirect), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_CUSTOM, "-pixelformat", "pixelFormat", "PixelFormat",
-                "0", -1, Tk_Offset(Togl, PixelFormat), 0,
-            (ClientData) &wideIntOption, FORMAT_MASK},
-    {TK_OPTION_INT, "-swapinterval", "swapInterval", "SwapInterval",
-            "1", -1, Tk_Offset(Togl, SwapInterval), 0, NULL, SWAP_MASK},
-    {TK_OPTION_BOOLEAN, "-fullscreen", "fullscreen", "Fullscreen",
-                "false", -1, Tk_Offset(Togl, FullscreenFlag), 0, NULL,
-            GEOMETRY_MASK|FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-multisample", "multisample", "Multisample",
-                "false", -1, Tk_Offset(Togl, MultisampleFlag), 0, NULL,
-            FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-pbuffer", "pbuffer", "Pbuffer",
-            "false", -1, Tk_Offset(Togl, PbufferFlag), 0, NULL, FORMAT_MASK},
-    {TK_OPTION_BOOLEAN, "-largestpbuffer", "largestpbuffer",
-                "LargestPbuffer",
-            "false", -1, Tk_Offset(Togl, LargestPbufferFlag), 0, NULL, 0},
-    {TK_OPTION_STRING, "-createcommand", "createCommand",
-                "CallbackCommand", NULL,
-            Tk_Offset(Togl, CreateProc), -1, TK_OPTION_NULL_OK, NULL, 0},
-    {TK_OPTION_SYNONYM, "-create", NULL, NULL,
-            NULL, -1, -1, 0, (ClientData) "-createcommand", 0},
-    {TK_OPTION_STRING, "-displaycommand", "displayCommand",
-                "CallbackCommand", NULL,
-            Tk_Offset(Togl, DisplayProc), -1, TK_OPTION_NULL_OK, NULL, 0},
-    {TK_OPTION_SYNONYM, "-display", NULL, NULL,
-            NULL, -1, -1, 0, (ClientData) "-displaycommand", 0},
-    {TK_OPTION_STRING, "-reshapecommand", "reshapeCommand",
-                "CallbackCommand", NULL,
-            Tk_Offset(Togl, ReshapeProc), -1, TK_OPTION_NULL_OK, NULL, 0},
-    {TK_OPTION_SYNONYM, "-reshape", NULL, NULL,
-            NULL, -1, -1, 0, (ClientData) "-reshapecommand", 0},
-    {TK_OPTION_STRING, "-destroycommand", "destroyCommand",
-                "CallbackCommand", NULL,
-            Tk_Offset(Togl, DestroyProc), -1, TK_OPTION_NULL_OK, NULL, 0},
-    {TK_OPTION_SYNONYM, "-destroy", NULL, NULL,
-            NULL, -1, -1, 0, (ClientData) "-destroycommand", 0},
-    {TK_OPTION_STRING, "-timercommand", "timerCommand",
-                "CallbackCommand", NULL,
-            Tk_Offset(Togl, TimerProc), -1, TK_OPTION_NULL_OK, NULL, 0},
-    {TK_OPTION_SYNONYM, "-timer", NULL, NULL,
-            NULL, -1, -1, 0, (ClientData) "-timercommand", 0},
-    {TK_OPTION_STRING, "-overlaydisplaycommand",
-                "overlaydisplayCommand", "CallbackCommand", NULL,
-                Tk_Offset(Togl, OverlayDisplayProc), -1,
-            TK_OPTION_NULL_OK, NULL, OVERLAY_MASK},
-    {TK_OPTION_SYNONYM, "-overlaydisplay", NULL, NULL,
-            NULL, -1, -1, 0, (ClientData) "-overlaydisplaycommand", 0},
-    {TK_OPTION_STRING_TABLE, "-profile", "profile", "Profile",
-     "legacy", -1, Tk_Offset(Togl, profile), 0, profileStrings, 0},
-#endif
+    {TK_OPTION_RELIEF, "-relief", "relief", "Relief", "flat",
+     offsetof(Togl, reliefPtr), TCL_INDEX_NONE, 0, NULL, 0},
+    {TK_OPTION_BOOLEAN, "-rgba", "rgba", "RGBA", "true",
+     TCL_INDEX_NONE, offsetof(Togl, rgbaFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-redsize", "redsize", "RedSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, rgbaRed), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-greensize", "greensize", "GreenSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, rgbaGreen), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-bluesize", "bluesize", "BlueSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, rgbaBlue), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-double", "double", "Double", "false",
+     TCL_INDEX_NONE, offsetof(Togl, doubleFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-depth", "depth", "Depth", "false",
+     TCL_INDEX_NONE, offsetof(Togl, depthFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-depthsize", "depthsize", "DepthSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, depthSize), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-accum", "accum", "Accum", "false",
+     TCL_INDEX_NONE, offsetof(Togl, accumFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-accumredsize", "accumredsize", "accumRedSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, accumRed), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-accumgreensize", "accumgreensize", "AccumGreenSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, accumGreen), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-accumbluesize", "accumbluesize", "AccumBlueSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, accumBlue), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-accumalphasize", "accumalphasize", "AccumAlphaSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, accumAlpha), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-alpha", "alpha", "Alpha", "false",
+     TCL_INDEX_NONE, offsetof(Togl, alphaFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-alphasize", "alphasize", "AlphaSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, alphaSize), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-stencil", "stencil", "Stencil", "false",
+     TCL_INDEX_NONE, offsetof(Togl, stencilFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-stencilsize", "stencilsize", "StencilSize", "1",
+     TCL_INDEX_NONE, offsetof(Togl, stencilSize), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_INT, "-auxbuffers", "auxbuffers", "AuxBuffers", "0",
+     TCL_INDEX_NONE, offsetof(Togl, auxNumber), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-privatecmap", "privateCmap", "PrivateCmap", "false",
+     TCL_INDEX_NONE, offsetof(Togl, privateCmapFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-overlay", "overlay", "Overlay", "false",
+     TCL_INDEX_NONE, offsetof(Togl, overlayFlag), 0, NULL, OVERLAY_MASK},
+    {TK_OPTION_CUSTOM, "-stereo", "stereo", "Stereo", "",
+     TCL_INDEX_NONE, offsetof(Togl, stereo), 0, (void*) &stereoOption,
+     STEREO_FORMAT_MASK},
+    {TK_OPTION_DOUBLE, "-eyeseparation", "eyeseparation", "EyeSeparation", "2.0",
+     TCL_INDEX_NONE, offsetof(Togl, eyeSeparation), 0, NULL, STEREO_MASK},
+    {TK_OPTION_DOUBLE, "-convergence", "convergence", "Convergence", "35.0",
+     TCL_INDEX_NONE, offsetof(Togl, convergence), 0, NULL, STEREO_MASK},
+    {TK_OPTION_CURSOR, "-cursor", "cursor", "Cursor", "",
+     TCL_INDEX_NONE, offsetof(Togl, cursor), TK_OPTION_NULL_OK, NULL, CURSOR_MASK},
+    {TK_OPTION_INT, "-setgrid", "setGrid", "SetGrid", "0",
+     TCL_INDEX_NONE, offsetof(Togl, setGrid), 0, NULL, GEOMETRY_MASK},
+    {TK_OPTION_INT, "-time", "time", "Time", DEFAULT_TIME,
+     TCL_INDEX_NONE, offsetof(Togl, timerInterval), 0, NULL, TIMER_MASK},
+    {TK_OPTION_STRING, "-sharelist", "sharelist", "ShareList", NULL,
+     TCL_INDEX_NONE, offsetof(Togl, shareList), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_STRING, "-sharecontext", "sharecontext", "ShareContext", NULL,
+     TCL_INDEX_NONE, offsetof(Togl, shareContext), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_STRING, "-ident", "ident", "Ident", DEFAULT_IDENT,
+     TCL_INDEX_NONE, offsetof(Togl, ident), 0, NULL, 0},
+    {TK_OPTION_BOOLEAN, "-indirect", "indirect", "Indirect", "false",
+     TCL_INDEX_NONE, offsetof(Togl, indirect), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_CUSTOM, "-pixelformat", "pixelFormat", "PixelFormat", "0",
+     TCL_INDEX_NONE, offsetof(Togl, pixelFormat), 0, (void *) &wideIntOption,
+     FORMAT_MASK},
+    {TK_OPTION_INT, "-swapinterval", "swapInterval", "SwapInterval", "1",
+     TCL_INDEX_NONE, offsetof(Togl, swapInterval), 0, NULL, SWAP_MASK},
+    {TK_OPTION_BOOLEAN, "-fullscreen", "fullscreen", "Fullscreen", "false",
+     TCL_INDEX_NONE, offsetof(Togl, fullscreenFlag), 0, NULL,
+     GEOMETRY_MASK|FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-multisample", "multisample", "Multisample", "false",
+     TCL_INDEX_NONE, offsetof(Togl, multisampleFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-pbuffer", "pbuffer", "Pbuffer", "false",
+     TCL_INDEX_NONE, offsetof(Togl, pBufferFlag), 0, NULL, FORMAT_MASK},
+    {TK_OPTION_BOOLEAN, "-largestpbuffer", "largestpbuffer", "LargestPbuffer", "false",
+     TCL_INDEX_NONE, offsetof(Togl, largestPbufferFlag), 0, NULL, 0},
+    {TK_OPTION_STRING, "-createcommand", "createCommand", "CallbackCommand", NULL,
+     offsetof(Togl, createProc), TCL_INDEX_NONE, TK_OPTION_NULL_OK, NULL, 0},
+    {TK_OPTION_SYNONYM, "-create", NULL, NULL, NULL, TCL_INDEX_NONE, TCL_INDEX_NONE, 0,
+     (void *) "-createcommand", 0},
+    {TK_OPTION_STRING, "-displaycommand", "displayCommand", "CallbackCommand", NULL,
+     offsetof(Togl, displayProc), TCL_INDEX_NONE, TK_OPTION_NULL_OK, NULL, 0},
+    {TK_OPTION_SYNONYM, "-display", NULL, NULL, NULL,
+     TCL_INDEX_NONE, TCL_INDEX_NONE, 0, (void *) "-displaycommand", 0},
+    {TK_OPTION_STRING, "-reshapecommand", "reshapeCommand", "CallbackCommand", NULL,
+     offsetof(Togl, reshapeProc), TCL_INDEX_NONE, TK_OPTION_NULL_OK, NULL, 0},
+    {TK_OPTION_SYNONYM, "-reshape", NULL, NULL, NULL,
+     TCL_INDEX_NONE, TCL_INDEX_NONE, 0, (void *) "-reshapecommand", 0},
+    {TK_OPTION_STRING, "-destroycommand", "destroyCommand", "CallbackCommand", NULL,
+     offsetof(Togl, destroyProc), TCL_INDEX_NONE, TK_OPTION_NULL_OK, NULL, 0},
+    {TK_OPTION_SYNONYM, "-destroy", NULL, NULL, NULL,
+     TCL_INDEX_NONE, TCL_INDEX_NONE, 0, (void *) "-destroycommand", 0},
+    {TK_OPTION_STRING, "-timercommand", "timerCommand", "CallbackCommand", NULL,
+     offsetof(Togl, timerProc), TCL_INDEX_NONE, TK_OPTION_NULL_OK, NULL, 0},
+    {TK_OPTION_SYNONYM, "-timer", NULL, NULL, NULL,
+     TCL_INDEX_NONE, TCL_INDEX_NONE, 0, (void *) "-timercommand", 0},
+    {TK_OPTION_STRING, "-overlaydisplaycommand", "overlaydisplayCommand", "CallbackCommand", NULL,
+     offsetof(Togl, overlayDisplayProc), TCL_INDEX_NONE, TK_OPTION_NULL_OK, NULL, OVERLAY_MASK},
+    {TK_OPTION_SYNONYM, "-overlaydisplay", NULL, NULL, NULL,
+     TCL_INDEX_NONE, TCL_INDEX_NONE, 0, (ClientData) "-overlaydisplaycommand", 0},
+    {TK_OPTION_STRING_TABLE, "-profile", "profile", "Profile", "legacy",
+     TCL_INDEX_NONE, offsetof(Togl, profile), 0, profileStrings, 0},
     {TK_OPTION_END, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 0}
 };

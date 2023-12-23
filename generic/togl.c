@@ -20,13 +20,14 @@
  * Forward declarations for procedures defined later in this file:
  */
 
-static void		ToglDeletedProc(void *clientData);
-static int		ToglConfigure(Tcl_Interp *interp, Togl *toglPtr);
-static void		ToglDisplay(void *clientData);
-static void		ToglObjEventProc(void *clientData,
-			    XEvent *eventPtr);
-static int		ToglWidgetObjCmd(void *clientData,
-			    Tcl_Interp *, int objc, Tcl_Obj * const objv[]);
+static void ToglDeletedProc(void *clientData);
+static int  ToglConfigure(Tcl_Interp *interp, Togl *toglPtr);
+static void ToglDisplay(void *clientData);
+static void ToglObjEventProc(void *clientData, XEvent *eventPtr);
+static int  ToglWidgetObjCmd(void *clientData, Tcl_Interp *interp, int objc,
+			     Tcl_Obj * const objv[]);
+static int              ObjectIsEmpty(Tcl_Obj *objPtr);
+
 
 /*
  *--------------------------------------------------------------
@@ -476,6 +477,334 @@ Togl_Init(
     }
     return TCL_OK;
 }
+
+/* Support for the -stereo custom option. */
+
+static Tk_CustomOptionSetProc SetStereo;
+static Tk_CustomOptionGetProc GetStereo;
+static Tk_CustomOptionRestoreProc RestoreStereo;
+
+static Tk_ObjCustomOption stereoOption = {
+    "stereo",                   /* name */
+    SetStereo,                  /* setProc */
+    GetStereo,                  /* getProc */
+    RestoreStereo,              /* restoreProc */
+    NULL,                       /* freeProc */
+    0
+};
+
+static Tcl_Obj *GetStereo(
+    void *clientData,
+    Tk_Window tkwin,
+    char *recordPtr,
+    Tcl_Size internalOffset)
+{
+    int     stereo = *(int *) (recordPtr + internalOffset);
+    const char *name = "unknown";
+
+    switch (stereo) {
+      case TOGL_STEREO_NONE:
+          name = "";
+          break;
+      case TOGL_STEREO_LEFT_EYE:
+          name = "left eye";
+          break;
+      case TOGL_STEREO_RIGHT_EYE:
+          name = "right eye";
+          break;
+      case TOGL_STEREO_NATIVE:
+          name = "native";
+          break;
+      case TOGL_STEREO_SGIOLDSTYLE:
+          name = "sgioldstyle";
+          break;
+      case TOGL_STEREO_ANAGLYPH:
+          name = "anaglyph";
+          break;
+      case TOGL_STEREO_CROSS_EYE:
+          name = "cross-eye";
+          break;
+      case TOGL_STEREO_WALL_EYE:
+          name = "wall-eye";
+          break;
+      case TOGL_STEREO_DTI:
+          name = "dti";
+          break;
+      case TOGL_STEREO_ROW_INTERLEAVED:
+          name = "row interleaved";
+          break;
+    }
+    return Tcl_NewStringObj(name, -1);
+}
+
+/* 
+ *----------------------------------------------------------------------
+ *
+ * SetStereo --
+ *
+ *      Converts a Tcl_Obj representing a widgets stereo into an
+ *      integer value.
+ *
+ * Results:
+ *      Standard Tcl result.
+ *
+ * Side effects:
+ *      May store the integer value into the internal representation
+ *      pointer.  May change the pointer to the Tcl_Obj to NULL to indicate
+ *      that the specified string was empty and that is acceptable.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int SetStereo(
+    void *clientData,
+    Tcl_Interp *interp,
+    Tk_Window tkwin,
+    Tcl_Obj **value,
+    char *recordPtr,
+    Tcl_Size internalOffset,
+    char *saveInternalPtr,
+    int flags)
+    /* interp is the current interp; may be used for errors. */
+    /* tkwin is the Window for which option is being set. */
+    /* value is a pointer to the pointer to the value object. We use a pointer
+     * to the pointer because we may need to return a value (NULL). */
+    /* recordPtr is a pointer to storage for the widget record. */
+    /* internalOffset is the offset within *recordPtr at which the internal
+     * value is to be stored. */
+    /* saveInternalPtr is a pointer to storage for the old value. */
+    /* flags are the flags for the option, set Tk_SetOptions. */
+{
+    int     stereo = 0;
+    char   *string, *internalPtr;
+
+    internalPtr = (internalOffset > 0) ? recordPtr + internalOffset : NULL;
+
+    if ((flags & TK_OPTION_NULL_OK) && ObjectIsEmpty(*value)) {
+        *value = NULL;
+    } else {
+        /* 
+         * Convert the stereo specifier into an integer value.
+         */
+
+        if (Tcl_GetBooleanFromObj(NULL, *value, &stereo) == TCL_OK) {
+            stereo = stereo ? TOGL_STEREO_NATIVE : TOGL_STEREO_NONE;
+        } else {
+            string = Tcl_GetString(*value);
+
+            if (strcmp(string, "") == 0 || strcasecmp(string, "none") == 0) {
+                stereo = TOGL_STEREO_NONE;
+            } else if (strcasecmp(string, "native") == 0) {
+                stereo = TOGL_STEREO_NATIVE;
+                /* check if available when creating visual */
+            } else if (strcasecmp(string, "left eye") == 0) {
+                stereo = TOGL_STEREO_LEFT_EYE;
+            } else if (strcasecmp(string, "right eye") == 0) {
+                stereo = TOGL_STEREO_RIGHT_EYE;
+            } else if (strcasecmp(string, "sgioldstyle") == 0) {
+                stereo = TOGL_STEREO_SGIOLDSTYLE;
+            } else if (strcasecmp(string, "anaglyph") == 0) {
+                stereo = TOGL_STEREO_ANAGLYPH;
+            } else if (strcasecmp(string, "cross-eye") == 0) {
+                stereo = TOGL_STEREO_CROSS_EYE;
+            } else if (strcasecmp(string, "wall-eye") == 0) {
+                stereo = TOGL_STEREO_WALL_EYE;
+            } else if (strcasecmp(string, "dti") == 0) {
+                stereo = TOGL_STEREO_DTI;
+            } else if (strcasecmp(string, "row interleaved") == 0) {
+                stereo = TOGL_STEREO_ROW_INTERLEAVED;
+            } else {
+                Tcl_ResetResult(interp);
+                Tcl_AppendResult(interp, "bad stereo value \"",
+                        Tcl_GetString(*value), "\"", NULL);
+                return TCL_ERROR;
+            }
+        }
+    }
+
+    if (internalPtr != NULL) {
+        *((int *) saveInternalPtr) = *((int *) internalPtr);
+        *((int *) internalPtr) = stereo;
+    }
+    return TCL_OK;
+}
+
+/* 
+ *----------------------------------------------------------------------
+ * RestoreStereo --
+ *
+ *      Restore a stereo option value from a saved value.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Restores the old value.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+RestoreStereo(
+    void *clientData,
+    Tk_Window tkwin,
+    char *internalPtr,
+    char *saveInternalPtr)
+{
+    *(int *) internalPtr = *(int *) saveInternalPtr;
+}
+/* 
+ * The following structure contains pointers to functions used for
+ * processing the custom "-pixelformat" option.  Copied from tkPanedWindow.c.
+ */
+/* 
+ * Support for the custom "-pixelformat" option.
+ */
+static Tk_CustomOptionSetProc SetWideInt;
+static Tk_CustomOptionGetProc GetWideInt;
+static Tk_CustomOptionRestoreProc RestoreWideInt;
+
+static Tk_ObjCustomOption wideIntOption = {
+    "wide int",                 /* name */
+    SetWideInt,                 /* setProc */
+    GetWideInt,                 /* getProc */
+    RestoreWideInt,             /* restoreProc */
+    NULL,                       /* freeProc */
+    0
+};
+/* 
+ *----------------------------------------------------------------------
+ *
+ * GetWideInt -
+ *
+ *      Converts an internal wide integer into a a Tcl WideInt obj.
+ *
+ * Results:
+ *      Tcl_Obj containing the wide int value.
+ *
+ * Side effects:
+ *      Creates a new Tcl_Obj.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_Obj *GetWideInt(
+    void *clientData,
+    Tk_Window tkwin,
+    char *recordPtr,
+    Tcl_Size internalOffset)
+{
+    Tcl_WideInt wi = *(Tcl_WideInt *) (recordPtr + internalOffset);
+    return Tcl_NewWideIntObj(wi);
+}
+
+/* 
+ *----------------------------------------------------------------------
+ *
+ * SetWideInt --
+ *
+ *      Converts a Tcl_Obj representing a Tcl_WideInt.
+ *
+ * Results:
+ *      Standard Tcl result.
+ *
+ * Side effects:
+ *      May store the wide int value into the internal representation
+ *      pointer.  May change the pointer to the Tcl_Obj to NULL to indicate
+ *      that the specified string was empty and that is acceptable.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int SetWideInt(
+    void *clientData,
+    Tcl_Interp *interp,
+    Tk_Window tkwin,
+    Tcl_Obj **value,
+    char *recordPtr,
+    Tcl_Size internalOffset,
+    char *saveInternalPtr,
+    int flags)
+{
+    Tcl_WideInt w;
+    char   *internalPtr;
+    internalPtr = (internalOffset > 0) ? recordPtr + internalOffset : NULL;
+
+    if ((flags & TK_OPTION_NULL_OK) && ObjectIsEmpty(*value)) {
+        *value = NULL;
+        w = 0;
+    } else {
+        if (Tcl_GetWideIntFromObj(interp, *value, &w) != TCL_OK) {
+            return TCL_ERROR;
+        }
+    }
+
+    if (internalPtr != NULL) {
+        *((Tcl_WideInt *) saveInternalPtr) = *((Tcl_WideInt *) internalPtr);
+        *((Tcl_WideInt *) internalPtr) = w;
+    }
+    return TCL_OK;
+}
+/* 
+ *----------------------------------------------------------------------
+ * RestoreWideInt --
+ *
+ *      Restore a wide int option value from a saved value.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Restores the old value.
+ *
+ *----------------------------------------------------------------------
+ */
+
+
+static void
+RestoreWideInt(
+    ClientData clientData,
+    Tk_Window tkwin,
+    char *internalPtr,
+    char *saveInternalPtr)
+{
+    *(Tcl_WideInt *) internalPtr = *(Tcl_WideInt *) saveInternalPtr;
+}
+
+/* 
+ *----------------------------------------------------------------------
+ *
+ * ObjectIsEmpty --
+ *
+ *      This procedure tests whether the string value of an object is
+ *      empty.
+ *
+ * Results:
+ *      The return value is 1 if the string value of objPtr has length
+ *      zero, and 0 otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+ObjectIsEmpty(Tcl_Obj *objPtr)
+/* objPtr = Object to test.  May be NULL. */
+{
+    Tcl_Size length;
+
+    if (objPtr == NULL) {
+        return 1;
+    }
+    if (objPtr->bytes != NULL) {
+        return (objPtr->length == 0);
+    }
+    Tcl_GetStringFromObj(objPtr, &length);
+    return (length == 0);
+}
+
 #ifdef __cplusplus
 }
 #endif  /* __cplusplus */
