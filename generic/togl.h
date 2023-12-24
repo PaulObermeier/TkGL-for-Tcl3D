@@ -61,8 +61,8 @@ typedef struct Togl {
     int updatePending;		/* Non-zero means a call to ToglDisplay has
 				 * already been scheduled. */
   //=================================//
-    Tcl_Obj *widthObjPtr;	/* Width of togl widget. */
-    Tcl_Obj *heightObjPtr;	/* Height of togl widget. */
+    int     width;	        /* Width of togl widget in pixels. */
+    int     height;	        /* Height of togl widget in pixels. */
     int     setGrid;            /* positive is grid size for window manager */
     int     contextTag;         /* contexts with same tag share display lists */
     XVisualInfo *visInfo;       /* Visual info of the current */
@@ -220,10 +220,10 @@ static Tk_OptionSpec toglOptionSpecs[] = {
     {TK_OPTION_PIXELS, "-posy", "posy", "PosY", "0",
 	    offsetof(Togl, yPtr), TCL_INDEX_NONE, 0, NULL, 0},
     /*==========================================*/
-    {TK_OPTION_PIXELS, "-width", "width", "Width", DEFAULT_WIDTH,
-     offsetof(Togl, widthObjPtr), TCL_INDEX_NONE, 0, NULL, GEOMETRY_MASK},
-    {TK_OPTION_PIXELS, "-height", "height", "Height", DEFAULT_HEIGHT,
-     offsetof(Togl, heightObjPtr), TCL_INDEX_NONE, 0, NULL, GEOMETRY_MASK},
+    {TK_OPTION_INT, "-width", "width", "Width", DEFAULT_WIDTH,
+     TCL_INDEX_NONE, offsetof(Togl, width), 0, NULL, GEOMETRY_MASK},
+    {TK_OPTION_INT, "-height", "height", "Height", DEFAULT_HEIGHT,
+     TCL_INDEX_NONE, offsetof(Togl, height),0, NULL, GEOMETRY_MASK},
     {TK_OPTION_RELIEF, "-relief", "relief", "Relief", "flat",
      offsetof(Togl, reliefPtr), TCL_INDEX_NONE, 0, NULL, 0},
     {TK_OPTION_BOOLEAN, "-rgba", "rgba", "RGBA", "true",

@@ -246,11 +246,6 @@ ToglConfigure(
     int borderWidth;
     Tk_3DBorder bgBorder;
     //    int doubleBuffer;
-    int width;
-    int height;
-
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->widthObjPtr, &width);
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->heightObjPtr, &height);
 
     /*
      * Set the background for the window and create a graphics context for use
@@ -266,7 +261,7 @@ ToglConfigure(
      * window to be redisplayed.
      */
 
-    Tk_GeometryRequest(toglPtr->tkwin, width, height);
+    Tk_GeometryRequest(toglPtr->tkwin, toglPtr->width, toglPtr->height);
     Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->borderWidthPtr,
 	    &borderWidth);
     Tk_SetInternalBorder(toglPtr->tkwin, borderWidth);
@@ -308,7 +303,10 @@ ToglObjEventProc(
 	    toglPtr->updatePending = 1;
 	}
     } else if (eventPtr->type == ConfigureNotify) {
-	//KeepInWindow(toglPtr);
+	toglPtr->width = Tk_Width(toglPtr->tkwin);
+	toglPtr->height = Tk_Height(toglPtr->tkwin);
+	XResizeWindow(Tk_Display(toglPtr->tkwin), Tk_WindowId(toglPtr->tkwin),
+		      toglPtr->width, toglPtr->height);
 	if (!toglPtr->updatePending) {
 	    Tcl_DoWhenIdle(ToglDisplay, toglPtr);
 	    toglPtr->updatePending = 1;
@@ -317,9 +315,9 @@ ToglObjEventProc(
 	if (toglPtr->tkwin != NULL) {
 	    Tk_FreeConfigOptions((char *) toglPtr, toglPtr->optionTable,
 		    toglPtr->tkwin);
-	    //	    if (toglPtr->gc != NULL) {
-	    //	Tk_FreeGC(toglPtr->display, toglPtr->gc);
-	    //}
+	    // if (toglPtr->gc != NULL) {
+	    // 	Tk_FreeGC(toglPtr->display, toglPtr->gc);
+	    // }
 	    toglPtr->tkwin = NULL;
 	    Tcl_DeleteCommandFromToken(toglPtr->interp,
 		    toglPtr->widgetCmd);
@@ -401,8 +399,8 @@ ToglDisplay(
 	return;
     }
     d = Tk_WindowId(tkwin);
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->widthObjPtr, &width);
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->heightObjPtr, &height);
+    width = toglPtr->width;
+    height = toglPtr->height;
 
     /*
      * Redraw the widget's background and border.
