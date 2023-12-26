@@ -4,22 +4,8 @@
  * Forward declarations
  */
 
-typedef struct ToglXX ToglXX;
+typedef struct Togl Togl;
 typedef struct Togl_PackageGlobals Togl_PackageGlobals;
-
-/*
- * The Togl package maintains a list containing a reference to each Togl
- * widget and another list of context tags.  This struct is initialized
- * when the first Togle widget gets created.  A reference to this struct
- * is passed to ToglObjCmd as the clientData parameter.
- */
-
-struct Togl_PackageGlobals
-{
-    Tk_OptionTable optionTable; /* Used to parse options */
-    ToglXX   *toglHead;         /* Head of linked list of all Togl widgets */
-    int     nextContextTag;     /* Used to assign similar context tags */
-};
 
 /*
  * Enum used for the -profile option to specify an OpenGL profile.
@@ -327,3 +313,9 @@ static Tk_OptionSpec toglOptionSpecs[] = {
      TCL_INDEX_NONE, offsetof(Togl, profile), 0, profileStrings, 0},
     {TK_OPTION_END, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 0}
 };
+
+/*
+ * Declarations of list management utilities.
+ */
+
+Togl* FindToglWithSameContext(const Togl *togl);

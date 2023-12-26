@@ -93,6 +93,7 @@ TEA_ADD_TCL_SOURCES([])
 
 #CLEANFILES="$CLEANFILES pkgIndex.tcl"
 
+TEA_ADD_INCLUDES([-I\"${srcdir}/generic\"])
 if test "${TEA_PLATFORM}" == "windows" ; then
     TEA_ADD_SOURCES([toglWinGL.c])
     TEA_ADD_INCLUDES([-I\"${srcdir}/win\"])
@@ -101,11 +102,12 @@ else
         TEA_ADD_SOURCES([toglUnixGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/unix\"])
     else
-        TEA_ADD_SOURCES([toglMacOSGL.c])
+        TEA_ADD_SOURCES([toglMacOSGL.c toglNSOpenGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/macosx\"])
         # On macOS, compile Togl source files as objective C because they need
         # access to the OpenGL framework and the NSView class.
         TEA_ADD_CFLAGS([-x objective-c])
+	TEA_ADD_LIBS([-lobjc])
         # Apple has deprecated OpenGL.  We don't need to hear about it:
         TEA_ADD_CFLAGS([-Wno-deprecated-declarations])	
     fi

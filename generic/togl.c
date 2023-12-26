@@ -17,7 +17,7 @@
 #include "togl.h"
 
 /*
- * Forward declarations for procedures defined later in this file:
+ * Declarations of static functions defined in this file:
  */
 
 static void ToglDeletedProc(void *clientData);
@@ -26,7 +26,21 @@ static void ToglDisplay(void *clientData);
 static void ToglObjEventProc(void *clientData, XEvent *eventPtr);
 static int  ToglWidgetObjCmd(void *clientData, Tcl_Interp *interp, int objc,
 			     Tcl_Obj * const objv[]);
-static int              ObjectIsEmpty(Tcl_Obj *objPtr);
+static int  ObjectIsEmpty(Tcl_Obj *objPtr);
+
+/*
+ * The Togl package maintains a per-thread list of all Togl widgets.
+ */
+
+typedef struct {
+    Togl *toglHead;        /* Head of linked list of all Togl widgets. */
+    int nextContextTag;    /* Used to assign similar context tags. */
+    int initialized;       /* Set to 1 when the struct is initialized. */ 
+} ThreadSpecificData;
+
+static Tcl_ThreadDataKey dataKey;
+static void addToList(Togl *t);
+static void removeFromList(Togl *t);
 
 
 /*
@@ -56,8 +70,11 @@ ToglObjCmd(
     Togl *toglPtr;
     Tk_Window tkwin = NULL;
     Tk_OptionTable optionTable;
-    // clientData should point to the global package data
-
+    ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
+	Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
+    if (!tsdPtr->initialized) {
+	tsdPtr->initialized = 1;
+    }
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "pathName ?-option value ...?");
 	return TCL_ERROR;
@@ -111,6 +128,7 @@ ToglObjCmd(
 	goto error;
     }
 
+    addToList(toglPtr);
     Tcl_SetObjResult(interp,
 	    Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
     return TCL_OK;
@@ -140,7 +158,7 @@ ToglObjCmd(
 
 static int
 ToglWidgetObjCmd(
-    void *clientData,	/* Information about togl widget. */
+    void *clientData,	        /* Information about togl widget. */
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj * const objv[])	/* Argument objects. */
@@ -364,6 +382,7 @@ ToglDeletedProc(
     if (tkwin != NULL) {
 	Tk_DestroyWindow(tkwin);
     }
+    removeFromList(toglPtr);
 }
 
 /*
@@ -801,6 +820,96 @@ ObjectIsEmpty(Tcl_Obj *objPtr)
     }
     Tcl_GetStringFromObj(objPtr, &length);
     return (length == 0);
+}
+
+/* 
+ *----------------------------------------------------------------------
+ *
+ * Utilities for managing the list of all Togl widgets.
+ *
+ *----------------------------------------------------------------------
+ */
+
+/* 
+ * Add a togl widget to the top of the linked list.
+ */
+static void
+addToList(Togl *t)
+{
+    ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
+        Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
+    t->next = tsdPtr->toglHead;
+    tsdPtr->toglHead = t;
+}
+
+/* 
+ * Remove a togl widget from the linked list.
+ */
+static void
+removeFromList(Togl *t)
+{
+    ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
+        Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
+    Togl   *prev, *cur;
+    for (cur = tsdPtr->toglHead, prev = NULL; cur; prev = cur, cur = cur->next) {
+        if (t != cur)
+            continue;
+        if (prev) {
+            prev->next = cur->next;
+        } else {
+            tsdPtr->toglHead = cur->next;
+        }
+        break;
+    }
+    if (cur)
+        cur->next = NULL;
+}
+
+/* 
+ * Return a pointer to the widget record of the Togl with a given pathname.
+ */
+Togl *
+FindTogl(Togl *togl, const char *ident)
+{
+    ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
+        Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
+    Togl   *t;
+
+    if (ident[0] != '.') {
+        for (t = tsdPtr->toglHead; t; t = t->next) {
+            if (strcmp(t->ident, ident) == 0)
+                break;
+        }
+    } else {
+        for (t = tsdPtr->toglHead; t; t = t->next) {
+            const char *pathname = Tk_PathName(t->tkwin);
+
+            if (strcmp(pathname, ident) == 0)
+                break;
+        }
+    }
+    return t;
+}
+
+
+/* 
+ * Return pointer to another togl widget with same OpenGL context.
+ */
+Togl *
+FindToglWithSameContext(const Togl *togl)
+{
+    ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
+        Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
+    Togl   *t;
+
+    for (t = tsdPtr->toglHead; t != NULL; t = t->next) {
+        if (t == togl)
+            continue;
+        if ((void *)t->context == (void *)togl->context) {
+            return t;
+        }
+    }
+    return NULL;
 }
 
 #ifdef __cplusplus
