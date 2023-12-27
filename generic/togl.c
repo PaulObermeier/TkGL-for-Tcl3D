@@ -70,6 +70,17 @@ ToglObjCmd(
     Togl *toglPtr;
     Tk_Window tkwin = NULL;
     Tk_OptionTable optionTable;
+    /* 
+     * Setup the Tk_ClassProcs callbacks.
+     */
+    static Tk_ClassProcs procs = {0};
+    if (procs.size == 0) {
+	procs.size = sizeof(Tk_ClassProcs);
+	procs.worldChangedProc = Togl_WorldChanged;
+	procs.createProc = Togl_MakeWindow;
+	procs.modalProc = NULL;
+    } 
+   
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
 	Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
     if (!tsdPtr->initialized) {
@@ -118,6 +129,7 @@ ToglObjCmd(
 	return TCL_ERROR;
     }
 
+    Tk_SetClassProcs(toglPtr->tkwin, &procs, toglPtr);
     Tk_CreateEventHandler(toglPtr->tkwin, ExposureMask|StructureNotifyMask,
 	    ToglObjEventProc, toglPtr);
     if (Tk_SetOptions(interp, toglPtr, optionTable, objc - 2,
@@ -262,7 +274,7 @@ ToglConfigure(
     Togl *toglPtr)		/* Information about widget. */
 {
     int borderWidth;
-    Tk_3DBorder bgBorder;
+    // Tk_3DBorder bgBorder;
     //    int doubleBuffer;
 
     /*
@@ -270,10 +282,11 @@ ToglConfigure(
      * during redisplay.
      */
 
-    bgBorder = Tk_Get3DBorderFromObj(toglPtr->tkwin,
-	    toglPtr->bgBorderPtr);
-    Tk_SetWindowBackground(toglPtr->tkwin,
-	    Tk_3DBorderColor(bgBorder)->pixel);
+    /* bgBorder = Tk_Get3DBorderFromObj(toglPtr->tkwin, */
+    /* 	    toglPtr->bgBorderPtr); */
+    /* Tk_SetWindowBackground(toglPtr->tkwin, */
+    /* 	    Tk_3DBorderColor(bgBorder)->pixel); */
+
     /*
      * Register the desired geometry for the window. Then arrange for the
      * window to be redisplayed.
@@ -409,43 +422,25 @@ ToglDisplay(
 {
     Togl *toglPtr = (Togl *)clientData;
     Tk_Window tkwin = toglPtr->tkwin;
-    Drawable d;
-    int borderWidth, width, height, relief;
-    Tk_3DBorder bgBorder, fgBorder;
+    int borderWidth, relief;
+    Tk_3DBorder border;
     
     toglPtr->updatePending = 0;
     if (!Tk_IsMapped(tkwin)) {
 	return;
     }
-    d = Tk_WindowId(tkwin);
-    width = toglPtr->width;
-    height = toglPtr->height;
-
     /*
      * Redraw the widget's background and border.
      */
 
     Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->borderWidthPtr,
 	    &borderWidth);
-    bgBorder = Tk_Get3DBorderFromObj(toglPtr->tkwin,
-	    toglPtr->bgBorderPtr);
     Tk_GetReliefFromObj(NULL, toglPtr->reliefPtr, &relief);
-    Tk_Fill3DRectangle(tkwin, d, bgBorder, 0, 0, Tk_Width(tkwin),
-	    Tk_Height(tkwin), borderWidth, relief);
-
-    /*
-     * Display the togl widget.
-     */
-    fgBorder = Tk_Get3DBorderFromObj(toglPtr->tkwin,
-	    toglPtr->fgBorderPtr);
-
-    Tk_Fill3DRectangle(tkwin, d, fgBorder, toglPtr->x, toglPtr->y, width,
-           height, borderWidth, TK_RELIEF_RAISED);
-
-    Tk_Fill3DRectangle(tkwin, d, fgBorder, toglPtr->x, toglPtr->y, width,
-	    height, borderWidth, TK_RELIEF_RAISED);
+    border = Tk_Get3DBorderFromObj(toglPtr->tkwin, toglPtr->bgPtr);
+    Tk_Draw3DRectangle(tkwin, Tk_WindowId(tkwin), border, 0, 0,
+	Tk_Width(tkwin), Tk_Height(tkwin), borderWidth, relief);
+    Togl_Update(toglPtr);
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -821,6 +816,37 @@ ObjectIsEmpty(Tcl_Obj *objPtr)
     Tcl_GetStringFromObj(objPtr, &length);
     return (length == 0);
 }
+
+/* 
+ * Togl_CallCallback
+ *
+ * Call command with togl widget as only argument
+ */
+
+int
+Togl_CallCallback(Togl *togl, Tcl_Obj *cmd)
+{
+    int     result;
+    Tcl_Obj *objv[3];
+
+    if (cmd == NULL || togl->widgetCmd == NULL)
+        return TCL_OK;
+
+    objv[0] = cmd;
+    Tcl_IncrRefCount(objv[0]);
+    objv[1] =
+            Tcl_NewStringObj(Tcl_GetCommandName(togl->interp, togl->widgetCmd),
+            -1);
+    Tcl_IncrRefCount(objv[1]);
+    objv[2] = NULL;
+    result = Tcl_EvalObjv(togl->interp, 2, objv, TCL_EVAL_GLOBAL);
+    Tcl_DecrRefCount(objv[1]);
+    Tcl_DecrRefCount(objv[0]);
+    if (result != TCL_OK)
+        Tcl_BackgroundError(togl->interp);
+    return result;
+}
+
 
 /* 
  *----------------------------------------------------------------------

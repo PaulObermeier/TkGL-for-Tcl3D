@@ -28,29 +28,18 @@ typedef struct Togl {
     Display *display;		/* X's token for the window's display. */
     Tcl_Interp *interp;		/* Interpreter associated with widget. */
     Tcl_Command widgetCmd;	/* Token for togl's widget command. */
-    Tk_OptionTable optionTable;	/* Token representing the configuration
-				 * specifications. */
-  // Fields from the Square widget
-    Tcl_Obj *xPtr, *yPtr;	/* Position of togl's upper-left corner
-				 * within widget. */
-    int x, y;
-    Tcl_Obj *sizeObjPtr;	/* Width and height of togl. */
-    Tcl_Obj *borderWidthPtr;	/* Width of 3-D border around whole widget. */
-    Tcl_Obj *bgBorderPtr;
-    Tcl_Obj *fgBorderPtr;
-    Tcl_Obj *reliefPtr;
-  // GC gc;			/* Graphics context for copying from
-  //			 * off-screen pixmap onto screen. */
-  //    Tcl_Obj *doubleBufferPtr;	/* Non-zero means double-buffer redisplay with
-  //				 * pixmap; zero means draw straight onto the
-  //				 * display. */
-    int updatePending;		/* Non-zero means a call to ToglDisplay has
-				 * already been scheduled. */
-  //=================================//
-    int     width;	        /* Width of togl widget in pixels. */
-    int     height;	        /* Height of togl widget in pixels. */
-    int     setGrid;            /* positive is grid size for window manager */
-    int     contextTag;         /* contexts with same tag share display lists */
+    Tk_OptionTable optionTable;	/* Token representing the option specifications. */
+    Tcl_Obj *sizeObjPtr;	/* Width and height of Togl widget. */
+    Tcl_Obj *borderWidthPtr;	/* width of border around widget. */
+    Tcl_Obj *reliefPtr;         /* border style */
+    Tcl_Obj *bgPtr;             /* background color */
+    Tcl_Obj *fgPtr;             /* foreground color */
+    int updatePending;		/* Non-zero if a call to ToglDisplay is scheduled. */
+    int x, y;                   /* Upper left corner of Togl widget */
+    int width;	                /* Width of togl widget in pixels. */
+    int height;	                /* Height of togl widget in pixels. */
+    int setGrid;                /* positive is grid size for window manager */
+    int contextTag;             /* contexts with same tag share display lists */
     XVisualInfo *visInfo;       /* Visual info of the current */
     Togl_PackageGlobals *tpg;   /* Used to access package global data */
     Tk_Cursor cursor;           /* The widget's cursor */
@@ -188,24 +177,19 @@ static Tk_ObjCustomOption wideIntOption;
 
 static Tk_OptionSpec toglOptionSpecs[] = {
   // From the square widget.  Remove most of these.
-    {TK_OPTION_BORDER, "-background", "background", "Background",
-	    "#d9d9d9", offsetof(Togl, bgBorderPtr), TCL_INDEX_NONE, 0,
-	    "white", 0},
+    {TK_OPTION_PIXELS, "-borderwidth", "borderWidth", "BorderWidth",
+	    "0", offsetof(Togl, borderWidthPtr), TCL_INDEX_NONE, 0, NULL, 0},
     {TK_OPTION_SYNONYM, "-bd", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
 	    "-borderwidth", 0},
+    {TK_OPTION_BORDER, "-background", "background", "Background",
+	    "#ffffff", offsetof(Togl, bgPtr), TCL_INDEX_NONE, 0,
+	    "white", 0},
     {TK_OPTION_SYNONYM, "-bg", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
 	    "-background", 0},
-    {TK_OPTION_PIXELS, "-borderwidth", "borderWidth", "BorderWidth",
-	    "2", offsetof(Togl, borderWidthPtr), TCL_INDEX_NONE, 0, NULL, 0},
+    {TK_OPTION_BORDER, "-foreground", "foreground", "Foreground", "#000000",
+     offsetof(Togl, fgPtr), TCL_INDEX_NONE, 0, "black", 0},
     {TK_OPTION_SYNONYM, "-fg", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
 	    "-foreground", 0},
-    {TK_OPTION_BORDER, "-foreground", "foreground", "Foreground", "#b03060",
-     offsetof(Togl, fgBorderPtr), TCL_INDEX_NONE, 0, "black", 0},
-    {TK_OPTION_PIXELS, "-posx", "posx", "PosX", "0",
-	    offsetof(Togl, xPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    {TK_OPTION_PIXELS, "-posy", "posy", "PosY", "0",
-	    offsetof(Togl, yPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    /*==========================================*/
     {TK_OPTION_INT, "-width", "width", "Width", DEFAULT_WIDTH,
      TCL_INDEX_NONE, offsetof(Togl, width), 0, NULL, GEOMETRY_MASK},
     {TK_OPTION_INT, "-height", "height", "Height", DEFAULT_HEIGHT,
@@ -315,7 +299,19 @@ static Tk_OptionSpec toglOptionSpecs[] = {
 };
 
 /*
- * Declarations of list management utilities.
+ * Declarations of utility functions defined in togl.c.
  */
 
+Togl* FindTogl(Togl *togl, const char *ident);
 Togl* FindToglWithSameContext(const Togl *togl);
+int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
+
+/*
+ * Declarations of platform specific utility functions.
+ */
+
+void Togl_Update(const Togl *togl);
+void Togl_MakeCurrent(const Togl *togl);
+Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
+void Togl_WorldChanged(void* instanceData);
+
