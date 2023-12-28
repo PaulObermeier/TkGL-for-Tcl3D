@@ -310,8 +310,9 @@ int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
  * Declarations of platform specific utility functions.
  */
 
-void Togl_Update(const Togl *togl);
-void Togl_MakeCurrent(const Togl *togl);
+const char *Togl_GetExtensions(const Togl *toglPtr);
+void Togl_MakeCurrent(const Togl *toglPtr);
+void Togl_Update(const Togl *toglPtr);
 Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
 void Togl_WorldChanged(void* instanceData);
 

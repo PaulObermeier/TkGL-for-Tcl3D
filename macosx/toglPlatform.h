@@ -5,3 +5,6 @@
 #include <OpenGL/OpenGL.h>
 #include <AppKit/NSView.h>
 #include <tkMacOSXInt.h>    /* For MacDrawable */
+#include <OpenGL/glext.h>
+#include <OpenGL/gl.h>
+

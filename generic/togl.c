@@ -27,6 +27,7 @@ static void ToglObjEventProc(void *clientData, XEvent *eventPtr);
 static int  ToglWidgetObjCmd(void *clientData, Tcl_Interp *interp, int objc,
 			     Tcl_Obj * const objv[]);
 static int  ObjectIsEmpty(Tcl_Obj *objPtr);
+static void ToglPostRedisplay(Togl *toglPtr);
 
 /*
  * The Togl package maintains a per-thread list of all Togl widgets.
@@ -177,9 +178,31 @@ ToglWidgetObjCmd(
 {
     Togl *toglPtr = (Togl *)clientData;
     int result = TCL_OK;
-    static const char *const toglOptions[] = {"cget", "configure", NULL};
-    enum {
-	TOGL_CGET, TOGL_CONFIGURE
+    static const char *const toglOptions[] = {
+        "cget", "configure", "extensions",
+        "postredisplay", "render",
+        "swapbuffers", "makecurrent", "takephoto",
+        "loadbitmapfont", "unloadbitmapfont", "write",
+        "uselayer", "showoverlay", "hideoverlay",
+        "postredisplayoverlay", "renderoverlay",
+        "existsoverlay", "ismappedoverlay",
+        "getoverlaytransparentvalue",
+        "drawbuffer", "clear", "frustum", "ortho",
+        "numeyes", "contexttag", "copycontextto",
+        NULL
+    };
+    enum
+    {
+        TOGL_CGET, TOGL_CONFIGURE, TOGL_EXTENSIONS,
+        TOGL_POSTREDISPLAY, TOGL_RENDER,
+        TOGL_SWAPBUFFERS, TOGL_MAKECURRENT, TOGL_TAKEPHOTO,
+        TOGL_LOADBITMAPFONT, TOGL_UNLOADBITMAPFONT, TOGL_WRITE,
+        TOGL_USELAYER, TOGL_SHOWOVERLAY, TOGL_HIDEOVERLAY,
+        TOGL_POSTREDISPLAYOVERLAY, TOGL_RENDEROVERLAY,
+        TOGL_EXISTSOVERLAY, TOGL_ISMAPPEDOVERLAY,
+        TOGL_GETOVERLAYTRANSPARENTVALUE,
+        TOGL_DRAWBUFFER, TOGL_CLEAR, TOGL_FRUSTUM, TOGL_ORTHO,
+        TOGL_NUMEYES, TOGL_CONTEXTTAG, TOGL_COPYCONTEXTTO
     };
     Tcl_Obj *resultObjPtr;
     int index;
@@ -239,6 +262,72 @@ ToglWidgetObjCmd(
 	if (resultObjPtr != NULL) {
 	    Tcl_SetObjResult(interp, resultObjPtr);
 	}
+	break;
+    case TOGL_EXTENSIONS:
+	/* Return a list of available OpenGL extensions
+	 * TODO: -glu for glu extensions,
+	 * -platform for glx/wgl extensions
+	 */
+	if (objc == 2) {
+	    const char *extensions = Togl_GetExtensions(toglPtr);
+	    Tcl_Obj *objPtr;
+	    Tcl_Size length = -1;
+	    if (extensions) {
+		objPtr = Tcl_NewStringObj(extensions, -1);
+		/* This will convert the object to a list. */
+		(void) Tcl_ListObjLength(interp, objPtr, &length);
+		Tcl_SetObjResult(interp, objPtr);
+	    } else {
+		Tcl_SetResult(toglPtr->interp, "No GL context is available.",
+		    TCL_STATIC);
+		result = TCL_ERROR;
+	    }
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
+    case TOGL_POSTREDISPLAY:
+	/* schedule the widget to be redrawn */
+	if (objc == 2) {
+	    ToglPostRedisplay(toglPtr);
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
+    case TOGL_RENDER:
+	/* force the widget to be redrawn */
+	if (objc == 2) {
+	    ToglDisplay((void *) toglPtr);
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
+    case TOGL_SWAPBUFFERS:
+    case TOGL_MAKECURRENT:
+    case TOGL_TAKEPHOTO:
+    case TOGL_LOADBITMAPFONT:
+    case TOGL_UNLOADBITMAPFONT:
+    case TOGL_WRITE:
+    case TOGL_USELAYER:
+    case TOGL_SHOWOVERLAY:
+    case TOGL_HIDEOVERLAY:
+    case TOGL_POSTREDISPLAYOVERLAY:
+    case TOGL_RENDEROVERLAY:
+    case TOGL_EXISTSOVERLAY:
+    case TOGL_ISMAPPEDOVERLAY:
+    case TOGL_GETOVERLAYTRANSPARENTVALUE:
+    case TOGL_DRAWBUFFER:
+    case TOGL_CLEAR:
+    case TOGL_FRUSTUM:
+    case TOGL_ORTHO:
+    case TOGL_NUMEYES:
+    case TOGL_CONTEXTTAG:
+    case TOGL_COPYCONTEXTTO:
+	printf("Not implemented yet\n");
+	break;
     }
     Tcl_Release(toglPtr);
     return result;
@@ -246,6 +335,15 @@ ToglWidgetObjCmd(
   error:
     Tcl_Release(toglPtr);
     return TCL_ERROR;
+}
+
+static void
+ToglPostRedisplay(Togl *toglPtr)
+{
+    if (!toglPtr->UpdatePending) {
+        toglPtr->UpdatePending = True;
+        Tcl_DoWhenIdle(ToglDisplay, (void *) toglPtr);
+    }
 }
 
 /*
@@ -328,12 +426,14 @@ ToglObjEventProc(
 {
     Togl *toglPtr = (Togl *)clientData;
 
-    if (eventPtr->type == Expose) {
+    switch(eventPtr->type) {
+    case Expose:
 	if (!toglPtr->updatePending) {
 	    Tcl_DoWhenIdle(ToglDisplay, toglPtr);
 	    toglPtr->updatePending = 1;
 	}
-    } else if (eventPtr->type == ConfigureNotify) {
+	break;
+    case ConfigureNotify:
 	toglPtr->width = Tk_Width(toglPtr->tkwin);
 	toglPtr->height = Tk_Height(toglPtr->tkwin);
 	XResizeWindow(Tk_Display(toglPtr->tkwin), Tk_WindowId(toglPtr->tkwin),
@@ -342,13 +442,11 @@ ToglObjEventProc(
 	    Tcl_DoWhenIdle(ToglDisplay, toglPtr);
 	    toglPtr->updatePending = 1;
 	}
-    } else if (eventPtr->type == DestroyNotify) {
+	break;
+    case DestroyNotify:
 	if (toglPtr->tkwin != NULL) {
 	    Tk_FreeConfigOptions((char *) toglPtr, toglPtr->optionTable,
 		    toglPtr->tkwin);
-	    // if (toglPtr->gc != NULL) {
-	    // 	Tk_FreeGC(toglPtr->display, toglPtr->gc);
-	    // }
 	    toglPtr->tkwin = NULL;
 	    Tcl_DeleteCommandFromToken(toglPtr->interp,
 		    toglPtr->widgetCmd);
@@ -357,6 +455,7 @@ ToglObjEventProc(
 	    Tcl_CancelIdleCall(ToglDisplay, toglPtr);
 	}
 	Tcl_EventuallyFree(toglPtr, TCL_DYNAMIC);
+	break;
     }
 }
 
@@ -440,6 +539,10 @@ ToglDisplay(
     Tk_Draw3DRectangle(tkwin, Tk_WindowId(tkwin), border, 0, 0,
 	Tk_Width(tkwin), Tk_Height(tkwin), borderWidth, relief);
     Togl_Update(toglPtr);
+    if (toglPtr->displayProc) {
+        Togl_MakeCurrent(toglPtr);
+        Togl_CallCallback(toglPtr, toglPtr->displayProc);
+    }
 }
 
 /*
