@@ -5,16 +5,8 @@
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
-
-#ifndef USE_TCL_STUBS
-#   define USE_TCL_STUBS
-#endif
-#ifndef USE_TK_STUBS
-#   define USE_TK_STUBS
-#endif
-#include <string.h>
-#include "tk.h"
 #include "togl.h"
+#include <string.h>
 
 /*
  * Declarations of static functions defined in this file:
@@ -78,9 +70,11 @@ ToglObjCmd(
     Togl *toglPtr;
     Tk_Window tkwin = NULL;
     Tk_OptionTable optionTable;
+
     /* 
      * Setup the Tk_ClassProcs callbacks.
      */
+
     static Tk_ClassProcs procs = {0};
     if (procs.size == 0) {
 	procs.size = sizeof(Tk_ClassProcs);
@@ -115,13 +109,11 @@ ToglObjCmd(
     optionTable = Tk_CreateOptionTable(interp, toglOptionSpecs);
 
     /*
-     * Allocate and initialize the widget record. The memset allows us to set
-     * just the non-NULL/0 items.
+     * Allocate and initialize the widget record.
      */
 
     toglPtr = (Togl *)ckalloc(sizeof(Togl));
     memset(toglPtr, 0, sizeof(Togl));
-
     toglPtr->tkwin = tkwin;
     toglPtr->display = Tk_Display(tkwin);
     toglPtr->interp = interp;
@@ -129,14 +121,12 @@ ToglObjCmd(
 	    Tk_PathName(toglPtr->tkwin), ToglWidgetObjCmd, toglPtr,
 	    ToglDeletedProc);
     toglPtr->optionTable = optionTable;
-
     if (Tk_InitOptions(interp, toglPtr, optionTable, tkwin)
 	    != TCL_OK) {
 	Tk_DestroyWindow(toglPtr->tkwin);
 	ckfree(toglPtr);
 	return TCL_ERROR;
     }
-
     Tk_SetClassProcs(toglPtr->tkwin, &procs, toglPtr);
     Tk_CreateEventHandler(toglPtr->tkwin, ExposureMask|StructureNotifyMask,
 	    ToglObjEventProc, toglPtr);
@@ -147,13 +137,12 @@ ToglObjCmd(
     if (ToglConfigure(interp, toglPtr) != TCL_OK) {
 	goto error;
     }
-
     if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
          goto error;
     }
     addToList(toglPtr);
     Tcl_SetObjResult(interp,
-	    Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
+	Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
     return TCL_OK;
 
   error:
@@ -166,9 +155,9 @@ ToglObjCmd(
  *
  * ToglWidgetObjCmd --
  *
- *	This procedure is invoked to process the Tcl command that corresponds
- *	to a widget managed by this module. See the user documentation for
- *	details on what it does.
+ *      When a Togl widget is created it registers its pathname as a new Tcl
+ *      command. This procedure is invoked to process the options for that
+ *      command.
  *
  * Results:
  *	A standard Tcl result.
@@ -189,16 +178,13 @@ ToglWidgetObjCmd(
     Togl *toglPtr = (Togl *)clientData;
     int result = TCL_OK;
     static const char *const toglOptions[] = {
-        "cget", "configure", "extensions",
-        "postredisplay", "render",
-        "swapbuffers", "makecurrent", "takephoto",
-        "loadbitmapfont", "unloadbitmapfont", "write",
-        "uselayer", "showoverlay", "hideoverlay",
-        "postredisplayoverlay", "renderoverlay",
-        "existsoverlay", "ismappedoverlay",
-        "getoverlaytransparentvalue",
-        "drawbuffer", "clear", "frustum", "ortho",
-        "numeyes", "contexttag", "copycontextto",
+        "cget", "configure", "extensions", "postredisplay", "render",
+        "swapbuffers", "makecurrent", "takephoto", "loadbitmapfont",
+	"unloadbitmapfont", "write", "uselayer", "showoverlay",
+	"hideoverlay", "postredisplayoverlay", "renderoverlay",
+        "existsoverlay", "ismappedoverlay", "getoverlaytransparentvalue",
+        "drawbuffer", "clear", "frustum", "ortho", "numeyes",
+	"contexttag", "copycontextto",
         NULL
     };
     enum
@@ -279,7 +265,7 @@ ToglWidgetObjCmd(
 	 * -platform for glx/wgl extensions
 	 */
 	if (objc == 2) {
-	    const char *extensions = Togl_GetExtensions(toglPtr);
+	    const char *extensions = (const char *) glGetString(GL_EXTENSIONS);
 	    Tcl_Obj *objPtr;
 	    Tcl_Size length = -1;
 	    if (extensions) {
@@ -689,7 +675,7 @@ ToglDisplay(
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
 
-    // TEST
+    // SIMPLE TEST
     Togl_MakeCurrent(toglPtr);	
     glClearColor(1, 0, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT);

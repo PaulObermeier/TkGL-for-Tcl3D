@@ -1,3 +1,10 @@
+#ifndef USE_TCL_STUBS
+#   define USE_TCL_STUBS
+#endif
+#ifndef USE_TK_STUBS
+#   define USE_TK_STUBS
+#endif
+#include "tk.h"
 #include "toglPlatform.h"
 
 /*
@@ -320,10 +327,8 @@ int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
 void Togl_Update(const Togl *toglPtr);
 Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
 void Togl_WorldChanged(void* instanceData);
-const char *Togl_GetExtensions(Togl *toglPtr);
 void Togl_MakeCurrent(const Togl *toglPtr);
 void Togl_SwapBuffers(const Togl *toglPtr);
 int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
 int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
-void Togl_TestGLContext(Togl *ToglPtr);
 int Togl_CreateGLContext(Togl *toglPtr);

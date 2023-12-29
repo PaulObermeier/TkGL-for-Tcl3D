@@ -584,21 +584,6 @@ Togl_WorldChanged(ClientData instanceData)
     }
 }
 
-const char *Togl_GetExtensions(Togl *toglPtr)
-{
-    /*
-     *  There must be a current OpenGL Context for the call to
-     *  glGetString to succeed.
-     */
-    if (NSOpenGLContext.currentContext == nil && toglPtr->context != nil) {
-        [toglPtr->context makeCurrentContext];
-    }
-    if (NSOpenGLContext.currentContext) {
-      return (const char *) glGetString(GL_EXTENSIONS);
-    }
-    return NULL;
-}
-
 /* 
  * Togl_TakePhoto
  *
