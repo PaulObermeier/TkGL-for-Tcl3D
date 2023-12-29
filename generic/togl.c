@@ -675,11 +675,13 @@ ToglDisplay(
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
 
-    // SIMPLE TEST
+    /* Simple test */
+#if 0
     Togl_MakeCurrent(toglPtr);	
     glClearColor(1, 0, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     Togl_SwapBuffers(toglPtr);
+#endif
 }
 
 /*
