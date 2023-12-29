@@ -28,6 +28,13 @@ static int  ToglWidgetObjCmd(void *clientData, Tcl_Interp *interp, int objc,
 			     Tcl_Obj * const objv[]);
 static int  ObjectIsEmpty(Tcl_Obj *objPtr);
 static void ToglPostRedisplay(Togl *toglPtr);
+static void ToglFrustum(const Togl *togl, GLdouble left, GLdouble right,
+			GLdouble bottom, GLdouble top, GLdouble zNear,
+			GLdouble zFar);
+static void ToglOrtho(const Togl *togl, GLdouble left, GLdouble right,
+		       GLdouble bottom, GLdouble top, GLdouble zNear,
+		      GLdouble zFar);
+static int GetToglFromObj(Tcl_Interp *interp, Tcl_Obj *obj, Togl **target);
 
 /*
  * The Togl package maintains a per-thread list of all Togl widgets.
@@ -141,6 +148,9 @@ ToglObjCmd(
 	goto error;
     }
 
+    if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
+         goto error;
+    }
     addToList(toglPtr);
     Tcl_SetObjResult(interp,
 	    Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
@@ -306,11 +316,55 @@ ToglWidgetObjCmd(
 	}
 	break;
     case TOGL_SWAPBUFFERS:
+	if (objc == 2) {
+	    Togl_SwapBuffers(toglPtr);
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
     case TOGL_MAKECURRENT:
+	if (objc == 2) {
+	    Togl_MakeCurrent(toglPtr);
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
     case TOGL_TAKEPHOTO:
+	if (objc != 3) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "name");
+	    result = TCL_ERROR;
+	} else {
+	    const char *name;
+	    Tk_PhotoHandle photo;
+
+	    name = Tcl_GetStringFromObj(objv[2], NULL);
+	    photo = Tk_FindPhoto(interp, name);
+	    if (photo == NULL) {
+		Tcl_AppendResult(interp, "image \"", name,
+		    "\" doesn't exist or is not a photo image", NULL);
+		result = TCL_ERROR;
+		break;
+	    }
+	    glPushAttrib(GL_PIXEL_MODE_BIT);
+	    if (toglPtr->doubleFlag) {
+		glReadBuffer(GL_FRONT);
+	    }
+	    Togl_TakePhoto(toglPtr, photo);
+	    glPopAttrib();    /* restore glReadBuffer */
+          }
+          break;
     case TOGL_LOADBITMAPFONT:
     case TOGL_UNLOADBITMAPFONT:
     case TOGL_WRITE:
+#if TOGL_USE_FONTS != 1
+	Tcl_AppendResult(interp, "unsupported", NULL);
+	result = TCL_ERROR;
+	break;
+#else	
+ERROR
+#endif
     case TOGL_USELAYER:
     case TOGL_SHOWOVERLAY:
     case TOGL_HIDEOVERLAY:
@@ -319,14 +373,105 @@ ToglWidgetObjCmd(
     case TOGL_EXISTSOVERLAY:
     case TOGL_ISMAPPEDOVERLAY:
     case TOGL_GETOVERLAYTRANSPARENTVALUE:
+#if TOGL_USE_OVERLAY != 1
+	Tcl_AppendResult(interp, "unsupported", NULL);
+	result = TCL_ERROR;
+	break;
+#else
+ERROR
+#endif
     case TOGL_DRAWBUFFER:
     case TOGL_CLEAR:
+#if 1
+	Tcl_AppendResult(interp, "unsupported", NULL);
+	result = TCL_ERROR;
+	break;
+#endif
     case TOGL_FRUSTUM:
+	if (objc != 8) {
+	    Tcl_WrongNumArgs(interp, 2, objv,
+			     "left right bottom top near far");
+	    result = TCL_ERROR;
+	} else {
+	    double  left, right, bottom, top, zNear, zFar;
+
+	    if (Tcl_GetDoubleFromObj(interp, objv[2], &left) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[3],
+					&right) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[4],
+					&bottom) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[5],
+					&top) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[6],
+					&zNear) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[7],
+					&zFar) == TCL_ERROR) {
+		result = TCL_ERROR;
+		break;
+	    }
+	    ToglFrustum(toglPtr, left, right, bottom, top, zNear, zFar);
+	}
+	break;
     case TOGL_ORTHO:
+	if (objc != 8) {
+	    Tcl_WrongNumArgs(interp, 2, objv,
+			     "left right bottom top near far");
+	    result = TCL_ERROR;
+	} else {
+	    double  left, right, bottom, top, zNear, zFar;
+
+	    if (Tcl_GetDoubleFromObj(interp, objv[2], &left) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[3],
+					&right) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[4],
+					&bottom) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[5],
+					&top) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[6],
+					&zNear) == TCL_ERROR
+		|| Tcl_GetDoubleFromObj(interp, objv[7],
+					&zFar) == TCL_ERROR) {
+		result = TCL_ERROR;
+		break;
+	    }
+	    ToglOrtho(toglPtr, left, right, bottom, top, zNear, zFar);
+	}
+	break;
     case TOGL_NUMEYES:
+	if (objc == 2) {
+	    Tcl_SetObjResult(interp, Tcl_NewIntObj(
+		toglPtr->stereo > TOGL_STEREO_ONE_EYE_MAX ? 2 : 1));
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
     case TOGL_CONTEXTTAG:
+	if (objc == 2) {
+	    Tcl_SetObjResult(interp, Tcl_NewIntObj(toglPtr->contextTag));
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
     case TOGL_COPYCONTEXTTO:
-	printf("Not implemented yet\n");
+	if (objc != 4) {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	} else {
+	    Togl *to;
+	    unsigned int mask;
+
+	    if (GetToglFromObj(toglPtr->interp, objv[2], &to) == TCL_ERROR
+		|| Tcl_GetIntFromObj(toglPtr->interp, objv[3],
+				     (int *) &mask) == TCL_ERROR) {
+		result = TCL_ERROR;
+		break;
+	    }
+	    result = Togl_CopyContext(toglPtr, to, mask);
+	}
+	break;
+    default:
 	break;
     }
     Tcl_Release(toglPtr);
@@ -543,6 +688,12 @@ ToglDisplay(
         Togl_MakeCurrent(toglPtr);
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
+
+    // TEST
+    Togl_MakeCurrent(toglPtr);	
+    glClearColor(1, 0, 1, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    Togl_SwapBuffers(toglPtr);
 }
 
 /*
@@ -1020,7 +1171,6 @@ FindTogl(Togl *togl, const char *ident)
     return t;
 }
 
-
 /* 
  * Return pointer to another togl widget with same OpenGL context.
  */
@@ -1041,6 +1191,104 @@ FindToglWithSameContext(const Togl *togl)
     return NULL;
 }
 
+/*
+ * ToglFrustum and ToglOrtho:
+ *
+ *     eyeOffset is the distance from the center line
+ *     and is negative for the left eye and positive for right eye.
+ *     eyeDist and eyeOffset need to be in the same units as your model space.
+ *     In physical space, eyeDist might be 30 inches from the screen
+ *     and eyeDist would be +/- 1.25 inch (for a total interocular distance
+ *     of 2.5 inches).
+ */
+static void
+ToglFrustum(const Togl *togl, GLdouble left, GLdouble right,
+        GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
+{
+    GLdouble eyeOffset = 0, eyeShift = 0;
+
+    if (togl->stereo == TOGL_STEREO_LEFT_EYE
+            || togl->currentStereoBuffer == STEREO_BUFFER_LEFT)
+        eyeOffset = -togl->eyeSeparation / 2;   /* for left eye */
+    else if (togl->stereo == TOGL_STEREO_RIGHT_EYE
+            || togl->currentStereoBuffer == STEREO_BUFFER_RIGHT)
+        eyeOffset = togl->eyeSeparation / 2;    /* for right eye */
+    eyeShift = (togl->convergence - zNear) * (eyeOffset / togl->convergence);
+
+    /* compenstate for altered viewports */
+    switch (togl->stereo) {
+      default:
+          break;
+      case TOGL_STEREO_SGIOLDSTYLE:
+      case TOGL_STEREO_DTI:
+          /* squished image is expanded, nothing needed */
+          break;
+      case TOGL_STEREO_CROSS_EYE:
+      case TOGL_STEREO_WALL_EYE:{
+          GLdouble delta = (top - bottom) / 2;
+
+          top += delta;
+          bottom -= delta;
+          break;
+      }
+    }
+
+    glFrustum(left + eyeShift, right + eyeShift, bottom, top, zNear, zFar);
+    glTranslated(-eyeShift, 0, 0);
+}
+
+static void
+ToglOrtho(const Togl *togl, GLdouble left, GLdouble right,
+        GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
+{
+    /* TODO: debug this */
+    GLdouble eyeOffset = 0, eyeShift = 0;
+
+    if (togl->currentStereoBuffer == STEREO_BUFFER_LEFT)
+        eyeOffset = -togl->eyeSeparation / 2;   /* for left eye */
+    else if (togl->currentStereoBuffer == STEREO_BUFFER_RIGHT)
+        eyeOffset = togl->eyeSeparation / 2;    /* for right eye */
+    eyeShift = (togl->convergence - zNear) * (eyeOffset / togl->convergence);
+
+    /* compenstate for altered viewports */
+    switch (togl->stereo) {
+      default:
+          break;
+      case TOGL_STEREO_SGIOLDSTYLE:
+      case TOGL_STEREO_DTI:
+          /* squished image is expanded, nothing needed */
+          break;
+      case TOGL_STEREO_CROSS_EYE:
+      case TOGL_STEREO_WALL_EYE:{
+          GLdouble delta = (top - bottom) / 2;
+
+          top += delta;
+          bottom -= delta;
+          break;
+      }
+    }
+
+    glOrtho(left + eyeShift, right + eyeShift, bottom, top, zNear, zFar);
+    glTranslated(-eyeShift, 0, 0);
+}
+
+static int
+GetToglFromObj(Tcl_Interp *interp, Tcl_Obj *obj, Togl **toglPtr)
+{
+    Tcl_Command toglCmd;
+    Tcl_CmdInfo info;
+
+    toglCmd = Tcl_GetCommandFromObj(interp, obj);
+    if (Tcl_GetCommandInfoFromToken(toglCmd, &info) == 0
+            || info.objProc != ToglWidgetObjCmd) {
+        Tcl_AppendResult(interp, "expected togl command argument", NULL);
+        return TCL_ERROR;
+    }
+    *toglPtr = (Togl *) info.objClientData;
+    return TCL_OK;
+}
+
+    
 #ifdef __cplusplus
 }
 #endif  /* __cplusplus */

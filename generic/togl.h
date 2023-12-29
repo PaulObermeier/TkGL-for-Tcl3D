@@ -28,7 +28,7 @@ typedef struct Togl {
     Display *display;		/* X's token for the window's display. */
     Tcl_Interp *interp;		/* Interpreter associated with widget. */
     Tcl_Command widgetCmd;	/* Token for togl's widget command. */
-    Tk_OptionTable optionTable;	/* Token representing the option specifications. */
+    Tk_OptionTable optionTable; /* Token representing the option specifications. */
     Tcl_Obj *sizeObjPtr;	/* Width and height of Togl widget. */
     Tcl_Obj *borderWidthPtr;	/* width of border around widget. */
     Tcl_Obj *reliefPtr;         /* border style */
@@ -160,6 +160,13 @@ typedef struct Togl {
 #  define TOGL_STEREO_WALL_EYE		132
 #  define TOGL_STEREO_DTI		133     /* dti3d.com */
 #  define TOGL_STEREO_ROW_INTERLEAVED	134     /* www.vrex.com/developer/interleave.htm */
+
+#ifndef STEREO_BUFFER_NONE
+/* From <X11/extensions/SGIStereo.h>, but we use this constants elsewhere */
+#  define STEREO_BUFFER_NONE 0
+#  define STEREO_BUFFER_LEFT 1
+#  define STEREO_BUFFER_RIGHT 2
+#endif
 
 /*
  * The following table defines the legal values for the -profile
@@ -310,9 +317,13 @@ int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
  * Declarations of platform specific utility functions.
  */
 
-const char *Togl_GetExtensions(const Togl *toglPtr);
-void Togl_MakeCurrent(const Togl *toglPtr);
 void Togl_Update(const Togl *toglPtr);
 Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
 void Togl_WorldChanged(void* instanceData);
-
+const char *Togl_GetExtensions(Togl *toglPtr);
+void Togl_MakeCurrent(const Togl *toglPtr);
+void Togl_SwapBuffers(const Togl *toglPtr);
+int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
+int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
+void Togl_TestGLContext(Togl *ToglPtr);
+int Togl_CreateGLContext(Togl *toglPtr);
