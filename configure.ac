@@ -102,7 +102,7 @@ else
         TEA_ADD_SOURCES([toglUnixGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/unix\"])
     else
-        TEA_ADD_SOURCES([toglMacOSGL.c toglNSOpenGL.c])
+        TEA_ADD_SOURCES([toglNSOpenGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/macosx\"])
         # On macOS, compile Togl source files as objective C because they need
         # access to the OpenGL framework and the NSView class.

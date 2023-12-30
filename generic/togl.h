@@ -12,7 +12,6 @@
  */
 
 typedef struct Togl Togl;
-typedef struct Togl_PackageGlobals Togl_PackageGlobals;
 
 /*
  * Enum used for the -profile option to specify an OpenGL profile.
@@ -48,7 +47,6 @@ typedef struct Togl {
     int setGrid;                /* positive is grid size for window manager */
     int contextTag;             /* contexts with same tag share display lists */
     XVisualInfo *visInfo;       /* Visual info of the current */
-    Togl_PackageGlobals *tpg;   /* Used to access package global data */
     Tk_Cursor cursor;           /* The widget's cursor */
     int     timerInterval;      /* Time interval for timer in milliseconds */
     Tcl_TimerToken timerHandler;        /* Token for togl's timer handler */
