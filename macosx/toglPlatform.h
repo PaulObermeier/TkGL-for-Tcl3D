@@ -7,4 +7,3 @@
 #include <tkMacOSXInt.h>    /* For MacDrawable */
 #include <OpenGL/glext.h>
 #include <OpenGL/gl.h>
-

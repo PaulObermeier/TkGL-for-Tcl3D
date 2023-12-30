@@ -101,7 +101,7 @@ else
     if test "${TEA_WINDOWINGSYSTEM}" = "x11"; then
         TEA_ADD_SOURCES([toglUnixGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/unix\"])
-	TEA_LINK_LIBS([-lX11 -lGL])
+	TEA_ADD_LIBS([-lX11 -lGL])
     else
         TEA_ADD_SOURCES([toglNSOpenGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/macosx\"])

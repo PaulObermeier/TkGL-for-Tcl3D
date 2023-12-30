@@ -10,15 +10,6 @@
 #include <ApplicationServices/ApplicationServices.h>
 #define Togl_MacOSXGetDrawablePort(togl) TkMacOSXGetDrawablePort((Drawable) ((TkWindow *) togl->TkWin)->privatePtr)
 
-/*
- * The following table defines the values for the mac-specific -profile
- * option.
- */
-
-static const char *const profileStrings[] = {
-    "legacy", "3_2", "4_1", NULL
-};
-
 static NSOpenGLPixelFormat *
 togl_pixelFormat(Togl *togl)
 {

@@ -1,6 +1,18 @@
-/* Declarations of custom option structs.
-   This file should only be included by togl.c,
+/*
+ * Declarations of custom option structs.
+ * This file should only be included by togl.c,
  */
+#ifndef TOGL_OPTIONS_H
+
+/*
+ * The following table defines the legal values for the -profile
+ * option, which is only used by toglNSOpenGL.c.
+ */
+
+static const char *const profileStrings[] = {
+    "legacy", "3_2", "4_1", NULL
+};
+
 static Tk_ObjCustomOption stereoOption;
 static Tk_ObjCustomOption wideIntOption;
 
@@ -126,3 +138,5 @@ static Tk_OptionSpec toglOptionSpecs[] = {
      TCL_INDEX_NONE, offsetof(Togl, profile), 0, profileStrings, 0},
     {TK_OPTION_END, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 0}
 };
+#define TOGL_OPTIONS_H
+#endif

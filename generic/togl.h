@@ -174,16 +174,6 @@ typedef struct Togl {
 #endif
 
 /*
- * The following table defines the legal values for the -profile
- * option, which is only used in toglNSOpenGL.c.
- */
-
-static const char *const profileStrings[] = {
-    "legacy", "3_2", "4_1", NULL
-};
-
-
-/*
  * Declarations of utility functions defined in togl.c.
  */
 
