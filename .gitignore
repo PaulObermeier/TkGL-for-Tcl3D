@@ -1,0 +1,9 @@
+autom4te.cache
+Makefile
+build
+config.*
+configure
+*.dylib
+manifest.uuid
+pkgIndex.tcl
+*Uuid.h
