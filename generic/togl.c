@@ -6,6 +6,7 @@
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 #include "togl.h"
+#include "toglOptions.h" 
 #include <string.h>
 
 /*

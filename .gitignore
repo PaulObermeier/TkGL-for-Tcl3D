@@ -7,3 +7,5 @@ configure
 manifest.uuid
 pkgIndex.tcl
 *Uuid.h
+*.dylib
+*.so
