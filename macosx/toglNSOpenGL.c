@@ -224,9 +224,17 @@ togl_destroyPbuffer(Togl *togl)
 }
 
 const char* Togl_GetExtensions(
-    Togl *ToglPtr)
+    Togl *toglPtr)
 {
-    int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
+    printf("context is %p\n", toglPtr->context);
+    printf("current context is %p\n", [NSOpenGLContext currentContext]);
+
+    const char *extensions = (const char*) glGetString(GL_EXTENSIONS);
+    if (extensions) {
+	printf("%s\n", extensions);
+    } else {
+	printf("glGetString returned NULL\n");
+    }
     return (const char *) glGetString(GL_EXTENSIONS);
 }
 
@@ -240,19 +248,15 @@ const char* Togl_GetExtensions(
 
 void Togl_Update(const Togl *toglPtr)
 {
-  int borderWidth;
   int x = toglPtr->x, y = toglPtr->y;
   int width = toglPtr->width, height = toglPtr->height;
-  NSRect frameRect = NSMakeRect(x, y, width, height), innerRect;
-  Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->borderWidthPtr,
-		      &borderWidth);
-  innerRect = NSInsetRect(frameRect, borderWidth, borderWidth);
+  NSRect frameRect = NSMakeRect(x, y, width, height);
   // The coordinates of the frame of an NSView are in points, but the
   // coordinates of the bounds of an NSView managed by an
   // NSOpenGLContext are in pixels.  (There are 2.0 pixels per point on
   // a retina display.)  If we need to modify the bounds we should use
   // [NSView convertRectToBacking:(NSRect)rect];
-  [toglPtr->nsview setFrame: innerRect];
+  [toglPtr->nsview setFrame: frameRect];
   if (toglPtr->context && [toglPtr->context view] != toglPtr->nsview) {
     [toglPtr->context setView:toglPtr->nsview];
   }
