@@ -17,7 +17,6 @@ int Togl_CreateGLContext(Togl *toglPtr);
 #include "toglPlatform.h"
 #include "tkInt.h"  /* for TkWindow */
 
-
 static Colormap get_rgb_colormap(Display *dpy, int scrnum,
 		    const XVisualInfo *visinfo, Tk_Window tkwin);
 
@@ -64,30 +63,39 @@ struct FBInfo
     int     depth;
     int     colors;
     GLXFBConfig fbcfg;
-    XVisualInfo *visInfo;
 };
 typedef struct FBInfo FBInfo;
 
-static int
-FBInfoCmp(const void *a, const void *b)
+static void getFBInfo(
+   Display *display,
+   GLXFBConfig cfg,
+   FBInfo *info)
 {
-    /* 
-     * 1. full acceleration is better
-     * 2. greater color bits is better
-     * 3. greater depth bits is better
-     * 4. more multisampling is better
-     */
-    const FBInfo *x = (const FBInfo *) a;
-    const FBInfo *y = (const FBInfo *) b;
+    info->fbcfg = cfg;
+    /* GLX_NONE < GLX_SLOW_CONFIG < GLX_NON_CONFORMANT_CONFIG */
+    getFBConfigAttrib(display, cfg, GLX_CONFIG_CAVEAT, &info->acceleration);
+    /* Number of bits per color */
+    getFBConfigAttrib(display, cfg, GLX_BUFFER_SIZE, &info->colors);
+    /* Number of bits per depth value. */
+    getFBConfigAttrib(display, cfg, GLX_DEPTH_SIZE, &info->depth);
+    /* Number of samples per pixesl when multisampling. */
+    getFBConfigAttrib(display, cfg, GLX_SAMPLES, &info->samples);
+}
+
+static Bool isBetterFB(
+    const FBInfo *x,
+    const FBInfo *y)
+{
+    /* True if x is better than y */
     if (x->acceleration != y->acceleration)
-        return x->acceleration - y->acceleration;
+        return (x->acceleration < y->acceleration);
     if (x->colors != y->colors)
-        return y->colors - x->colors;
+        return (x->colors > y->colors);
     if (x->depth != y->depth)
-        return y->depth - x->depth;
+        return (x->depth > y->depth);
     if (x->samples != y->samples)
-        return y->samples - x->samples;
-    return 0;
+        return (x->samples > y->samples);
+    return false;
 }
 
 static Tcl_ThreadDataKey togl_XError;
@@ -188,7 +196,6 @@ togl_pixelFormat(
     FBInfo *info;
     int dummy, major, minor;
     const char *extensions;
-    printf("togl_pixelformat: starting\n");
 
     /*
      * Make sure OpenGL's GLX extension is supported.
@@ -211,14 +218,6 @@ togl_pixelFormat(
     printf("GLX version is %d.%d\n", major, minor);
     printf("Profile = %d\n", toglPtr->profile);
     if (major > 1 || (major == 1 && minor >= 4)) {
-      if (1 || toglPtr->profile != PROFILE_LEGACY) {
-        /*
-         * Togl_GetProcAddr returns NULL unless we #define
-         * GLX_VERSION_1_4.  But if we do #define it we get a segfault
-         * as soon as chooseFBConfig is called.  We don't seem to need
-         * it anyway, at least on Ubuntu 18.04, since we are linking
-         * against the shared library.
-         */   
         chooseFBConfig = glXChooseFBConfig;
         getFBConfigAttrib = glXGetFBConfigAttrib;
         getVisualFromFBConfig = glXGetVisualFromFBConfig;
@@ -226,90 +225,18 @@ togl_pixelFormat(
         destroyPbuffer = glXDestroyPbuffer;
         queryPbuffer = glXQueryDrawable;
         hasPbuffer = True;
-      } else {
-        chooseFBConfig = NULL;
-        createPbuffer = NULL;
-        destroyPbuffer = NULL;
-        queryPbuffer = NULL;
-      }
-    }
-    if (major == 1 && minor == 3) {
-      chooseFBConfig = (PFNGLXCHOOSEFBCONFIGPROC)
-        glXGetProcAddress((GLubyte*)"glXChooseFBConfig");
-      getFBConfigAttrib = (PFNGLXGETFBCONFIGATTRIBPROC)
-        glXGetProcAddress((GLubyte*)"glXGetFBConfigAttrib");
-      getVisualFromFBConfig = (PFNGLXGETVISUALFROMFBCONFIGPROC)
-        glXGetProcAddress((GLubyte*)"glXGetVisualFromFBConfig");
-      createPbuffer = (PFNGLXCREATEPBUFFERPROC)
-        glXGetProcAddress((GLubyte*)"glXCreatePbuffer");
-      destroyPbuffer = (PFNGLXDESTROYPBUFFERPROC)
-        glXGetProcAddress((GLubyte*)"glXDestroyPbuffer");
-      queryPbuffer = (PFNGLXQUERYDRAWABLEPROC)
-        glXGetProcAddress((GLubyte*)"glXQueryDrawable");
-      if (createPbuffer && destroyPbuffer && queryPbuffer) {
-        hasPbuffer = True;
-      } else {
-        createPbuffer = NULL;
-        destroyPbuffer = NULL;
-        queryPbuffer = NULL;
-      }
-    }
-    if (major == 1 && minor == 2) {
-      chooseFBConfig = (PFNGLXCHOOSEFBCONFIGPROC)
-        glXGetProcAddress((GLubyte*)"glXChooseFBConfigSGIX");
-      getFBConfigAttrib = (PFNGLXGETFBCONFIGATTRIBPROC)
-        glXGetProcAddress((GLubyte*)"glXGetFBConfigAttribSGIX");
-      getVisualFromFBConfig = (PFNGLXGETVISUALFROMFBCONFIGPROC)
-        glXGetProcAddress((GLubyte*)"glXGetVisualFromFBConfigSGIX");
-      if (strstr(extensions, "GLX_SGIX_pbuffer") != NULL) {
-        createPbufferSGIX = (PFNGLXCREATEGLXPBUFFERSGIXPROC)
-          glXGetProcAddress((GLubyte*)"glXCreateGLXPbufferSGIX");
-        destroyPbuffer = (PFNGLXDESTROYPBUFFERPROC)
-          glXGetProcAddress((GLubyte*)"glXDestroyGLXPbufferSGIX");
-        queryPbuffer = (PFNGLXQUERYDRAWABLEPROC)
-          glXGetProcAddress((GLubyte*)"glXQueryGLXPbufferSGIX");
-        if (createPbufferSGIX && destroyPbuffer && queryPbuffer) {
-          hasPbuffer = True;
-        } else {
-          createPbufferSGIX = NULL;
-          destroyPbuffer = NULL;
-          queryPbuffer = NULL;
-        }
-      }
-    }
-    printf("chooseFBConfig is %p.\n", chooseFBConfig);
-
-    if (chooseFBConfig) {
-	printf("Testing chooseFBConfig\n");
-      /* verify that chooseFBConfig works (workaround Mesa 6.5 bug) */
-      int     n = 0;
-      GLXFBConfig *cfgs;
-
-      attribs[n++] = GLX_RENDER_TYPE;
-      attribs[n++] = GLX_RGBA_BIT;
-      attribs[n++] = None;
-
-      cfgs = chooseFBConfig(toglPtr->display, scrnum, attribs, &n);
-      printf("cfgs = %p, count = %d\n", cfgs, n);
-      if (cfgs == NULL || n == 0) {
-        chooseFBConfig = NULL;
-      }
-      XFree(cfgs);
-    }
-    if (chooseFBConfig == NULL
-        || getFBConfigAttrib == NULL || getVisualFromFBConfig == NULL) {
-	chooseFBConfig = NULL;
-      getFBConfigAttrib = NULL;
-      getVisualFromFBConfig = NULL;
+    } else {
+	Tcl_SetResult(toglPtr->interp,
+	    "Togl 3.0 requires GLX 1.4 or newer.", TCL_STATIC);
+	return NULL;
     }
     if (hasPbuffer && !chooseFBConfig) {
       hasPbuffer = False;
     }
 
-    if ((major > 1 || (major == 1 && minor >= 4))
-        || strstr(extensions, "GLX_ARB_multisample") != NULL
+    if (strstr(extensions, "GLX_ARB_multisample") != NULL
         || strstr(extensions, "GLX_SGIS_multisample") != NULL) {
-      /* Client GLX supports multisampling, but does the server? Well, we 
+      /* Client GLX supports multisampling, but does the server? Well, we
        * can always ask. */
       hasMultisampling = True;
     }
@@ -326,7 +253,7 @@ togl_pixelFormat(
         return NULL;
     }
 
-    /* 
+    /*
      * Only use the newer glXGetFBConfig if there's an explicit need for it
      * because it is buggy on many systems:
      *  (1) NVidia 96.43.07 on Linux, single-buffered windows don't work
@@ -404,56 +331,36 @@ togl_pixelFormat(
         attribs[na++] = None;
 
         cfgs = chooseFBConfig(toglPtr->display, scrnum, attribs, &count);
-	printf("Second try: cfgs = %p, count = %d\n", cfgs, count); 
         if (cfgs == NULL || count == 0) {
-            Tcl_SetResult(toglPtr->interp,
-                          "couldn't choose pixel format", TCL_STATIC);
+            Tcl_SetResult(toglPtr->interp, "Couldn't choose pixel format.",
+			  TCL_STATIC);
             return NULL;
         }
-        /* 
-         * Pick best format
+
+        /*
+         * Pick the best available pixel format.
          */
-        info = (FBInfo *) malloc(count * sizeof (FBInfo));
-        for (i = 0; i != count; ++i) {
-            info[i].visInfo = getVisualFromFBConfig(toglPtr->display, cfgs[i]);
-            info[i].fbcfg = cfgs[i];
-            getFBConfigAttrib(toglPtr->display, cfgs[i], GLX_CONFIG_CAVEAT,
-                    &info[i].acceleration);
-            getFBConfigAttrib(toglPtr->display, cfgs[i], GLX_BUFFER_SIZE,
-                    &info[i].colors);
-            getFBConfigAttrib(toglPtr->display, cfgs[i], GLX_DEPTH_SIZE,
-                    &info[i].depth);
-            getFBConfigAttrib(toglPtr->display, cfgs[i], GLX_SAMPLES,
-                    &info[i].samples);
-            /* revise attributes so larger is better */
-            //info[i].acceleration = -(info[i].acceleration - GLX_NONE);
-	    //if (!toglPtr->depthFlag)
-	    //	info[i].depth = info[i].depth < 0 ? 128 :-info[i].depth;
-	    //   if (!toglPtr->multisampleFlag)
-	    //       info[i].samples = -info[i].samples;
-        }
-	printf("sorting configs\n");
-        qsort(info, count, sizeof info[0], FBInfoCmp);
-	for (i = 0; i != count; ++i) {
-	    printf(" acc: %d ", info[i].acceleration);
-	    printf(" colors: %d ", info[i].colors);
-	    printf(" depth: %d ", info[i].depth);
-	    printf(" samples: %d\n", info[i].samples);
+
+	FBInfo bestFB, nextFB;
+	getFBInfo(toglPtr->display, cfgs[0], &bestFB);
+	for (i=1; i < count; i++) {
+	    getFBInfo(toglPtr->display, cfgs[i], &nextFB);
+	    if (isBetterFB(&nextFB, &bestFB)) {
+		bestFB = nextFB;
+	    }
 	}
-	
-	toglPtr->fbcfg = info[0].fbcfg;
-	printf("Best config is %p\n", toglPtr->fbcfg);
-        visinfo = info[0].visInfo;
-        for (i = 1; i != count; ++i)
-            XFree(info[i].visInfo);
-        free(info);
-        XFree(cfgs);
+	printf(" acc: %d ", bestFB.acceleration);
+	printf(" colors: %d ", bestFB.colors);
+	printf(" depth: %d ", bestFB.depth);
+	printf(" samples: %d\n", bestFB.samples);
+	toglPtr->fbcfg = bestFB.fbcfg;
+	visinfo = getVisualFromFBConfig(toglPtr->display, bestFB.fbcfg);
         return visinfo;
     }
 
     /* use original glXChooseVisual */
     attribs[na++] = GLX_USE_GL;
-    if (toglPtr->rgbaFlag) {
+	if (toglPtr->rgbaFlag) {
         /* RGB[A] mode */
         attribs[na++] = GLX_RGBA;
         attribs[na++] = GLX_RED_SIZE;
@@ -549,7 +456,7 @@ Togl_CreateGLContext(
 {
     GLXContext context = NULL;
     GLXContext shareCtx = NULL;
-    /* If this is false, GLX reports GLXBadFBConfig. */ 
+    /* If this is false, GLX reports GLXBadFBConfig. */
     Bool direct = true;
     switch(toglPtr->profile) {
 #if 0
@@ -586,7 +493,7 @@ Togl_Update(
     printf("Togl_Update\n");
 }
 
-/* 
+/*
  * Togl_MakeWindow
  *
  *   Window creation function, invoked as a callback from Tk_MakeWindowExist.
@@ -628,7 +535,7 @@ Togl_MakeWindow(
     dpy = Tk_Display(tkwin);
     scrnum = Tk_ScreenNumber(tkwin);
 
-    /* 
+    /*
      * Figure out which OpenGL context to use
      */
 
@@ -658,7 +565,7 @@ Togl_MakeWindow(
         directCtx = False;
     }
 
-    /* 
+    /*
      * Create a new OpenGL rendering context.
      */
     if (toglPtr->shareList) {
@@ -729,7 +636,7 @@ Togl_MakeWindow(
         return window;
     }
 
-    /* 
+    /*
      * find a colormap
      */
     if (toglPtr->rgbaFlag) {
@@ -913,7 +820,7 @@ Togl_CopyContext(
     return TCL_OK;
 }
 
-/* 
+/*
  * Return an X colormap to use for OpenGL RGB-mode rendering.
  * Input:  dpy - the X display
  *         scrnum - the X screen number
@@ -932,7 +839,7 @@ get_rgb_colormap(Display *dpy,
     Window  root = XRootWindow(dpy, scrnum);
     Bool    using_mesa;
 
-    /* 
+    /*
      * First check if visinfo's visual matches the default/root visual.
      */
     if (visinfo->visual == Tk_Visual(tkwin)) {
@@ -946,7 +853,7 @@ get_rgb_colormap(Display *dpy,
         return cmap;
     }
 
-    /* 
+    /*
      * Check if we're using Mesa.
      */
     if (strstr(glXQueryServerString(dpy, scrnum, GLX_VERSION), "Mesa")) {
@@ -955,7 +862,7 @@ get_rgb_colormap(Display *dpy,
         using_mesa = False;
     }
 
-    /* 
+    /*
      * Next, if we're using Mesa and displaying on an HP with the "Color
      * Recovery" feature and the visual is 8-bit TrueColor, search for a
      * special colormap initialized for dithering.  Mesa will know how to
@@ -986,7 +893,7 @@ get_rgb_colormap(Display *dpy,
         }
     }
 
-    /* 
+    /*
      * If we get here, give up and just allocate a new colormap.
      */
     return XCreateColormap(dpy, root, visinfo->visual, AllocNone);
