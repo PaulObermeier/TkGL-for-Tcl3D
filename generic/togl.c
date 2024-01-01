@@ -138,9 +138,11 @@ ToglObjCmd(
     if (ToglConfigure(interp, toglPtr) != TCL_OK) {
 	goto error;
     }
+#ifdef TOGL_NSOPENGL
     if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
          goto error;
     }
+#endif
     addToList(toglPtr);
     Tcl_SetObjResult(interp,
 	Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
@@ -492,8 +494,7 @@ ToglPostRedisplay(Togl *toglPtr)
  *	then the interp's result contains an error message.
  *
  * Side effects:
- *	Configuration information, such as colors, border width, etc. get set
- *	for toglPtr; old resources get freed, if there were any.
+ *	Configuration information gets set for toglPtr.
  *
  *----------------------------------------------------------------------
  */
@@ -503,29 +504,12 @@ ToglConfigure(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Togl *toglPtr)		/* Information about widget. */
 {
-    int borderWidth;
-    // Tk_3DBorder bgBorder;
-    //    int doubleBuffer;
-
-    /*
-     * Set the background for the window and create a graphics context for use
-     * during redisplay.
-     */
-
-    /* bgBorder = Tk_Get3DBorderFromObj(toglPtr->tkwin, */
-    /* 	    toglPtr->bgBorderPtr); */
-    /* Tk_SetWindowBackground(toglPtr->tkwin, */
-    /* 	    Tk_3DBorderColor(bgBorder)->pixel); */
-
     /*
      * Register the desired geometry for the window. Then arrange for the
      * window to be redisplayed.
      */
 
     Tk_GeometryRequest(toglPtr->tkwin, toglPtr->width, toglPtr->height);
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->borderWidthPtr,
-	    &borderWidth);
-    Tk_SetInternalBorder(toglPtr->tkwin, borderWidth);
     if (!toglPtr->updatePending) {
 	Tcl_DoWhenIdle(ToglDisplay, toglPtr);
 	toglPtr->updatePending = 1;
@@ -653,31 +637,18 @@ ToglDisplay(
 {
     Togl *toglPtr = (Togl *)clientData;
     Tk_Window tkwin = toglPtr->tkwin;
-    int borderWidth, relief;
-    Tk_3DBorder border;
     
     toglPtr->updatePending = 0;
     if (!Tk_IsMapped(tkwin)) {
 	return;
     }
-    /*
-     * Redraw the widget's background and border.
-     */
-
-    Tk_GetPixelsFromObj(NULL, toglPtr->tkwin, toglPtr->borderWidthPtr,
-	    &borderWidth);
-    Tk_GetReliefFromObj(NULL, toglPtr->reliefPtr, &relief);
-    border = Tk_Get3DBorderFromObj(toglPtr->tkwin, toglPtr->bgPtr);
-    Tk_Draw3DRectangle(tkwin, Tk_WindowId(tkwin), border, 0, 0,
-	Tk_Width(tkwin), Tk_Height(tkwin), borderWidth, relief);
     Togl_Update(toglPtr);
     if (toglPtr->displayProc) {
         Togl_MakeCurrent(toglPtr);
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
-
     /* Simple test */
-#if 0
+#if 1
     Togl_MakeCurrent(toglPtr);	
     glClearColor(1, 0, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT);

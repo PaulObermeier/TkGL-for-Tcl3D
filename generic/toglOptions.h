@@ -17,26 +17,10 @@ static Tk_ObjCustomOption stereoOption;
 static Tk_ObjCustomOption wideIntOption;
 
 static Tk_OptionSpec toglOptionSpecs[] = {
-  // From the square widget.  Remove most of these.
-    {TK_OPTION_PIXELS, "-borderwidth", "borderWidth", "BorderWidth",
-	    "0", offsetof(Togl, borderWidthPtr), TCL_INDEX_NONE, 0, NULL, 0},
-    {TK_OPTION_SYNONYM, "-bd", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
-	    "-borderwidth", 0},
-    {TK_OPTION_BORDER, "-background", "background", "Background",
-	    "#ffffff", offsetof(Togl, bgPtr), TCL_INDEX_NONE, 0,
-	    "white", 0},
-    {TK_OPTION_SYNONYM, "-bg", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
-	    "-background", 0},
-    {TK_OPTION_BORDER, "-foreground", "foreground", "Foreground", "#000000",
-     offsetof(Togl, fgPtr), TCL_INDEX_NONE, 0, "black", 0},
-    {TK_OPTION_SYNONYM, "-fg", NULL, NULL, NULL, 0, TCL_INDEX_NONE, 0,
-	    "-foreground", 0},
     {TK_OPTION_INT, "-width", "width", "Width", DEFAULT_WIDTH,
      TCL_INDEX_NONE, offsetof(Togl, width), 0, NULL, GEOMETRY_MASK},
     {TK_OPTION_INT, "-height", "height", "Height", DEFAULT_HEIGHT,
      TCL_INDEX_NONE, offsetof(Togl, height),0, NULL, GEOMETRY_MASK},
-    {TK_OPTION_RELIEF, "-relief", "relief", "Relief", "flat",
-     offsetof(Togl, reliefPtr), TCL_INDEX_NONE, 0, NULL, 0},
     {TK_OPTION_BOOLEAN, "-rgba", "rgba", "RGBA", "true",
      TCL_INDEX_NONE, offsetof(Togl, rgbaFlag), 0, NULL, FORMAT_MASK},
     {TK_OPTION_INT, "-redsize", "redsize", "RedSize", "1",

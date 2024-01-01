@@ -28,18 +28,11 @@ enum profile {
 
 typedef struct Togl {
     struct Togl *next;          /* Next in a linked list of all togl widgets.*/
-    Tk_Window tkwin;		/* Window containing the togl widget. NULL means
-				 * the window has been deleted but the widget
-				 * record hasn't been cleaned up yet. */
-    Display *display;		/* X's token for the window's display. */
+    Tk_Window tkwin;		/* Window identifier for the togl widget.*/
+    Display *display;		/* X token for the window's display. */
     Tcl_Interp *interp;		/* Interpreter associated with widget. */
     Tcl_Command widgetCmd;	/* Token for togl's widget command. */
     Tk_OptionTable optionTable; /* Token representing the option specifications. */
-    Tcl_Obj *sizeObjPtr;	/* Width and height of Togl widget. */
-    Tcl_Obj *borderWidthPtr;	/* width of border around widget. */
-    Tcl_Obj *reliefPtr;         /* border style */
-    Tcl_Obj *bgPtr;             /* background color */
-    Tcl_Obj *fgPtr;             /* foreground color */
     int updatePending;		/* Non-zero if a call to ToglDisplay is scheduled. */
     int x, y;                   /* Upper left corner of Togl widget */
     int width;	                /* Width of togl widget in pixels. */
