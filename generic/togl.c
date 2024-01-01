@@ -138,11 +138,9 @@ ToglObjCmd(
     if (ToglConfigure(interp, toglPtr) != TCL_OK) {
 	goto error;
     }
-#ifdef TOGL_NSOPENGL
     if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
          goto error;
     }
-#endif
     addToList(toglPtr);
     Tcl_SetObjResult(interp,
 	Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
@@ -268,7 +266,7 @@ ToglWidgetObjCmd(
 	 * -platform for glx/wgl extensions
 	 */
 	if (objc == 2) {
-	    const char *extensions = (const char *) glGetString(GL_EXTENSIONS);
+	    const char *extensions = Togl_GetExtensions(toglPtr);
 	    Tcl_Obj *objPtr;
 	    Tcl_Size length = -1;
 	    if (extensions) {

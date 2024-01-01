@@ -66,7 +66,6 @@ typedef struct Togl {
     double  convergence;
     GLuint  riStencilBit;       /* row interleaved stencil bit */
     int     auxNumber;
-    Bool    indirect;
     enum    profile profile;
     int     swapInterval;
     Bool    multisampleFlag;
@@ -176,6 +175,7 @@ int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
 
 /*
  * Declarations of platform specific utility functions.
+ * These consititute the interface of all platforms.
  */
 
 void Togl_Update(const Togl *toglPtr);
@@ -186,3 +186,4 @@ void Togl_SwapBuffers(const Togl *toglPtr);
 int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
 int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
 int Togl_CreateGLContext(Togl *toglPtr);
+const char* Togl_GetExtensions(Togl *ToglPtr);

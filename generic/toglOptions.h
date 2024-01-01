@@ -78,8 +78,6 @@ static Tk_OptionSpec toglOptionSpecs[] = {
      TCL_INDEX_NONE, offsetof(Togl, shareContext), 0, NULL, FORMAT_MASK},
     {TK_OPTION_STRING, "-ident", "ident", "Ident", DEFAULT_IDENT,
      TCL_INDEX_NONE, offsetof(Togl, ident), 0, NULL, 0},
-    {TK_OPTION_BOOLEAN, "-indirect", "indirect", "Indirect", "false",
-     TCL_INDEX_NONE, offsetof(Togl, indirect), 0, NULL, FORMAT_MASK},
     {TK_OPTION_CUSTOM, "-pixelformat", "pixelFormat", "PixelFormat", "0",
      TCL_INDEX_NONE, offsetof(Togl, pixelFormat), 0, (void *) &wideIntOption,
      FORMAT_MASK},
@@ -118,7 +116,7 @@ static Tk_OptionSpec toglOptionSpecs[] = {
      offsetof(Togl, overlayDisplayProc), TCL_INDEX_NONE, TK_OPTION_NULL_OK, NULL, OVERLAY_MASK},
     {TK_OPTION_SYNONYM, "-overlaydisplay", NULL, NULL, NULL,
      TCL_INDEX_NONE, TCL_INDEX_NONE, 0, (ClientData) "-overlaydisplaycommand", 0},
-    {TK_OPTION_STRING_TABLE, "-profile", "profile", "Profile", "legacy",
+    {TK_OPTION_STRING_TABLE, "-profile", "profile", "Profile", "4_1",
      TCL_INDEX_NONE, offsetof(Togl, profile), 0, profileStrings, 0},
     {TK_OPTION_END, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 0}
 };

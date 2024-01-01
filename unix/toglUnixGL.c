@@ -1,6 +1,6 @@
 /*
   This file contains implementations of the following platform specific
-  functions declared in togl.h.  They comprise the X11 interface.
+  functions declared in togl.h.  They comprise the platform interface.
 
 void Togl_Update(const Togl *toglPtr);
 Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
@@ -10,6 +10,7 @@ void Togl_SwapBuffers(const Togl *toglPtr);
 int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
 int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
 int Togl_CreateGLContext(Togl *toglPtr);
+const char* Togl_GetExtensions(Togl *ToglPtr);
 */
 
 #include <stdbool.h>
@@ -178,12 +179,6 @@ togl_createPbuffer(Togl *toglPtr)
     return pbuf;
 }
 
-static void
-togl_destroyPbuffer(Togl *toglPtr)
-{
-    destroyPbuffer(toglPtr->display, toglPtr->pbuf);
-}
-
 static XVisualInfo *
 togl_pixelFormat(
     Togl *toglPtr,
@@ -193,7 +188,6 @@ togl_pixelFormat(
     int na = 0;
     int i;
     XVisualInfo *visinfo;
-    FBInfo *info;
     int dummy, major, minor;
     const char *extensions;
 
@@ -215,8 +209,8 @@ togl_pixelFormat(
     glXQueryVersion(toglPtr->display, &major, &minor);
     extensions = glXQueryExtensionsString(toglPtr->display, scrnum);
 
-    printf("GLX version is %d.%d\n", major, minor);
-    printf("Profile = %d\n", toglPtr->profile);
+    //printf("GLX version is %d.%d\n", major, minor);
+    //printf("Profile = %d\n", toglPtr->profile);
     if (major > 1 || (major == 1 && minor >= 4)) {
         chooseFBConfig = glXChooseFBConfig;
         getFBConfigAttrib = glXGetFBConfigAttrib;
@@ -236,8 +230,6 @@ togl_pixelFormat(
 
     if (strstr(extensions, "GLX_ARB_multisample") != NULL
         || strstr(extensions, "GLX_SGIS_multisample") != NULL) {
-      /* Client GLX supports multisampling, but does the server? Well, we
-       * can always ask. */
       hasMultisampling = True;
     }
 
@@ -253,21 +245,13 @@ togl_pixelFormat(
         return NULL;
     }
 
-    /*
-     * Only use the newer glXGetFBConfig if there's an explicit need for it
-     * because it is buggy on many systems:
-     *  (1) NVidia 96.43.07 on Linux, single-buffered windows don't work
-     *  (2) Mesa 6.5.X and earlier fail
-     */
     if (chooseFBConfig) {
-	printf("glXGetFBConfig works\n");
-        /* have new glXGetFBConfig! */
         int     count;
         GLXFBConfig *cfgs;
 
         attribs[na++] = GLX_RENDER_TYPE;
         if (toglPtr->rgbaFlag) {
-	    printf("Using rgba mode\n");
+	    //printf("Using rgba mode\n");
             /* RGB[A] mode */
             attribs[na++] = GLX_RGBA_BIT;
             attribs[na++] = GLX_RED_SIZE;
@@ -349,68 +333,15 @@ togl_pixelFormat(
 		bestFB = nextFB;
 	    }
 	}
+#if 0
 	printf(" acc: %d ", bestFB.acceleration);
 	printf(" colors: %d ", bestFB.colors);
 	printf(" depth: %d ", bestFB.depth);
 	printf(" samples: %d\n", bestFB.samples);
+#endif
 	toglPtr->fbcfg = bestFB.fbcfg;
 	visinfo = getVisualFromFBConfig(toglPtr->display, bestFB.fbcfg);
-        return visinfo;
     }
-
-    /* use original glXChooseVisual */
-    attribs[na++] = GLX_USE_GL;
-	if (toglPtr->rgbaFlag) {
-        /* RGB[A] mode */
-        attribs[na++] = GLX_RGBA;
-        attribs[na++] = GLX_RED_SIZE;
-        attribs[na++] = toglPtr->rgbaRed;
-        attribs[na++] = GLX_GREEN_SIZE;
-        attribs[na++] = toglPtr->rgbaGreen;
-        attribs[na++] = GLX_BLUE_SIZE;
-        attribs[na++] = toglPtr->rgbaBlue;
-        if (toglPtr->alphaFlag) {
-            attribs[na++] = GLX_ALPHA_SIZE;
-            attribs[na++] = toglPtr->alphaSize;
-        }
-    } else {
-        /* Color index mode */
-        attribs[na++] = GLX_BUFFER_SIZE;
-        attribs[na++] = 1;
-    }
-    if (toglPtr->depthFlag) {
-        attribs[na++] = GLX_DEPTH_SIZE;
-        attribs[na++] = toglPtr->depthSize;
-    }
-    if (toglPtr->doubleFlag) {
-        attribs[na++] = GLX_DOUBLEBUFFER;
-    }
-    if (toglPtr->stencilFlag) {
-        attribs[na++] = GLX_STENCIL_SIZE;
-        attribs[na++] = toglPtr->stencilSize;
-    }
-    if (toglPtr->accumFlag) {
-        attribs[na++] = GLX_ACCUM_RED_SIZE;
-        attribs[na++] = toglPtr->accumRed;
-        attribs[na++] = GLX_ACCUM_GREEN_SIZE;
-        attribs[na++] = toglPtr->accumGreen;
-        attribs[na++] = GLX_ACCUM_BLUE_SIZE;
-        attribs[na++] = toglPtr->accumBlue;
-        if (toglPtr->alphaFlag) {
-            attribs[na++] = GLX_ACCUM_ALPHA_SIZE;
-            attribs[na++] = toglPtr->accumAlpha;
-        }
-    }
-    if (toglPtr->stereo == TOGL_STEREO_NATIVE) {
-        attribs[na++] = GLX_STEREO;
-    }
-    if (toglPtr->auxNumber != 0) {
-        attribs[na++] = GLX_AUX_BUFFERS;
-        attribs[na++] = toglPtr->auxNumber;
-    }
-    attribs[na++] = None;
-
-    visinfo = glXChooseVisual(toglPtr->display, scrnum, attribs);
     if (visinfo == NULL) {
         Tcl_SetResult(toglPtr->interp,
                       "couldn't choose pixel format", TCL_STATIC);
@@ -450,6 +381,14 @@ togl_describePixelFormat(Togl *toglPtr)
     return True;
 }
 
+const char* Togl_GetExtensions(
+    Togl *toglPtr)
+{
+    int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
+    return glXQueryExtensionsString(toglPtr->display, scrnum);
+
+}
+
 int
 Togl_CreateGLContext(
     Togl *toglPtr)
@@ -458,30 +397,31 @@ Togl_CreateGLContext(
     GLXContext shareCtx = NULL;
     /* If this is false, GLX reports GLXBadFBConfig. */
     Bool direct = true;
+    //printf("Togl_CreateContext\n");
+
+    if (toglPtr->fbcfg == NULL) {
+	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
+	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
+    }
     switch(toglPtr->profile) {
-#if 0
-    case 0:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_4_1);
-	break;
-#endif
     case PROFILE_3_2:
 	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
 	    shareCtx, direct, attributes_3_2);
 	break;
-    case 0:
     case PROFILE_4_1:
-    default:
 	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
 	    shareCtx, direct, attributes_4_1);
 	break;
-#if 0
     default:
-	printf("default\n");
+	//printf("default\n");
 	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
 	    shareCtx, direct);
 	break;
-#endif
+    }
+    if (context == NULL) {
+	Tcl_SetResult(toglPtr->interp,
+            "Failed to create GL rendering context", TCL_STATIC);
+	return TCL_ERROR;
     }
     toglPtr->context = context;
     return TCL_OK;
@@ -490,7 +430,7 @@ Togl_CreateGLContext(
 void
 Togl_Update(
     const Togl *toglPtr) {
-    printf("Togl_Update\n");
+    //printf("Togl_Update\n");
 }
 
 /*
@@ -513,7 +453,6 @@ Togl_MakeWindow(
     Window  window = None;
     XSetWindowAttributes swa;
     int     width, height;
-    bool directCtx = True;
 
     if (toglPtr->badWindow) {
         return Tk_MakeWindow(tkwin, parent);
@@ -561,13 +500,11 @@ Togl_MakeWindow(
             goto error;
         }
     }
-    if (toglPtr->indirect) {
-        directCtx = False;
-    }
 
     /*
      * Create a new OpenGL rendering context.
      */
+
     if (toglPtr->shareList) {
         /* share display lists with existing togl widget */
         Togl   *shareWith = FindTogl(toglPtr, toglPtr->shareList);
@@ -755,21 +692,21 @@ Togl_MakeWindow(
 void
 Togl_WorldChanged(
     void* instanceData){
-    printf("WorldChanged\n");
+    //printf("WorldChanged\n");
 }
 
 void
 Togl_MakeCurrent(
     const Togl *toglPtr)
 {
-    printf("MakeCurrent\n");
+    //printf("MakeCurrent\n");
     if (!toglPtr->context) {
-	printf("ToglMakeCurrent: no context\n");
+	//printf("ToglMakeCurrent: no context\n");
 	return;
     }
     Display *display = toglPtr ? toglPtr->display : glXGetCurrentDisplay();
     if (!display) {
-	printf("ToglMakeCurrent: no display\n");
+	//printf("ToglMakeCurrent: no display\n");
 	return;
     }
     GLXDrawable drawable;
@@ -783,7 +720,7 @@ Togl_MakeCurrent(
     else
 	drawable = None;
     if (drawable == None) {
-	printf("ToglMakeCurrent: no drawable\n");
+	//printf("ToglMakeCurrent: no drawable\n");
     }
     (void) glXMakeCurrent(display, drawable,
 	     drawable ? toglPtr->context : NULL);
@@ -792,7 +729,7 @@ Togl_MakeCurrent(
 void
 Togl_SwapBuffers(
     const Togl *toglPtr){
-    printf("SwapBuffers\n");
+    //printf("SwapBuffers\n");
     if (toglPtr->doubleFlag) {
         glXSwapBuffers(Tk_Display(toglPtr->tkwin),
 		       Tk_WindowId(toglPtr->tkwin));
@@ -806,7 +743,7 @@ Togl_TakePhoto(
     Togl *toglPtr,
     Tk_PhotoHandle photo)
 {
-    printf("TakePhoto\n");
+    //printf("TakePhoto\n");
     return TCL_OK;
 }
 
@@ -816,7 +753,7 @@ Togl_CopyContext(
     const Togl *to,
     unsigned mask)
 {
-    printf("CopyContext\n");
+    //printf("CopyContext\n");
     return TCL_OK;
 }
 

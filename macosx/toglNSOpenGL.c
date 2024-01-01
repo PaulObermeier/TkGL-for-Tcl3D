@@ -223,6 +223,13 @@ togl_destroyPbuffer(Togl *togl)
     [togl->pbuf release];
 }
 
+const char* Togl_GetExtensions(
+    Togl *ToglPtr)
+{
+    int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
+    return (const char *) glGetString(GL_EXTENSIONS);
+}
+
 /*
  *  Togl_Update
  *
