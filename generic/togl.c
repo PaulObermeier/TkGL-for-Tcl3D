@@ -610,6 +610,7 @@ ToglDeletedProc(
 	Tk_DestroyWindow(tkwin);
     }
     removeFromList(toglPtr);
+    Togl_FreeResources(toglPtr);
 }
 
 /*

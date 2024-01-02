@@ -243,7 +243,7 @@ const char* Togl_GetExtensions(
 	return toglPtr->extensions;
     }
     glGetIntegerv(GL_NUM_EXTENSIONS, &num);
-    buffer = malloc(1536);
+    buffer = ckalloc(1536);
     if (!buffer) {
 	return NULL;
     }
@@ -252,7 +252,7 @@ const char* Togl_GetExtensions(
 	char *ext = (char *)glGetStringi(GL_EXTENSIONS, i);
 	int len = strlen(ext);
 	if (strsize + len > bufsize) {
-	    buffer = realloc(buffer, len + 2*bufsize);
+	    buffer = ckrealloc(buffer, len + 2*bufsize);
 	    if (buffer == 0) {
 		strsize = bufsize = 0;
 		return NULL;
@@ -742,6 +742,15 @@ Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask)
     return TCL_OK;
 }
 
+void Togl_FreeResources(
+    Togl *toglPtr)
+{
+    if (toglPtr->extensions) {
+	ckfree((void *)toglPtr->extensions);
+	toglPtr->extensions = NULL;
+    }
+    
+}
 /*
  * Local Variables:
  * mode: objc

@@ -182,4 +182,5 @@ void Togl_SwapBuffers(const Togl *toglPtr);
 int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
 int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
 int Togl_CreateGLContext(Togl *toglPtr);
-const char* Togl_GetExtensions(Togl *ToglPtr);
+const char* Togl_GetExtensions(Togl *toglPtr);
+void Togl_FreeResources(Togl *toglPtr);

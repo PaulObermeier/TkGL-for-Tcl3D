@@ -11,6 +11,7 @@ int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
 int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
 int Togl_CreateGLContext(Togl *toglPtr);
 const char* Togl_GetExtensions(Togl *ToglPtr);
+void Togl_FreeResources(Togl *ToglPtr);
 */
 
 #include <stdbool.h>
@@ -834,6 +835,12 @@ get_rgb_colormap(Display *dpy,
      * If we get here, give up and just allocate a new colormap.
      */
     return XCreateColormap(dpy, root, visinfo->visual, AllocNone);
+}
+
+void Togl_FreeResources(
+    Togl *ToglPtr)
+{
+    printf("FreeResources\n");
 }
 
 /*
