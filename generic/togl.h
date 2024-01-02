@@ -74,25 +74,20 @@ typedef struct Togl {
     Bool    largestPbufferFlag;
     const char *shareList;      /* name (ident) of Togl to share dlists with */
     const char *shareContext;   /* name (ident) to share OpenGL context with */
-
     const char *ident;          /* User's identification string */
     void    *clientData;        /* Pointer to user data */
-
     Bool    UpdatePending;      /* Should normal planes be redrawn? */
-
     Tcl_Obj *createProc;        /* Callback when widget is realized */
     Tcl_Obj *displayProc;       /* Callback when widget is redrawn */
     Tcl_Obj *reshapeProc;       /* Callback when window size changes */
     Tcl_Obj *destroyProc;       /* Callback when widget is destroyed */
     Tcl_Obj *timerProc;         /* Callback when widget is idle */
-
     Window  overlayWindow;      /* The overlay window, or 0 */
     Tcl_Obj *overlayDisplayProc;     /* Overlay redraw proc */
     Bool    overlayUpdatePending;    /* Should overlay be redrawn? */
     Colormap overlayCmap;            /* colormap for overlay is created */
     int     overlayTransparentPixel; /* transparent pixel */
     Bool    overlayIsMapped;
-
     GLfloat *redMap;            /* Index2RGB Maps for Color index modes */
     GLfloat *greenMap;
     GLfloat *blueMap;
@@ -109,7 +104,7 @@ typedef struct Togl {
 #elif defined(TOGL_X11)
     GLXContext context;         /* OpenGL context for normal planes */
     GLXContext overlayContext;  /* OpenGL context for overlay planes */
-    GLXFBConfig fbcfg;          /* cache FBConfig for pbuffer creation */
+    GLXFBConfig fbcfg;          /* cached FBConfig */
     Tcl_WideInt pixelFormat;
     GLXPbuffer pbuf;
 #elif defined(TOGL_NSOPENGL)
@@ -117,6 +112,7 @@ typedef struct Togl {
     NSOpenGLPixelFormat *pixelFormat;
     NSOpenGLPixelBuffer *pbuf;
     NSView *nsview;
+    const char *extensions;
 #endif
 } Togl;
 

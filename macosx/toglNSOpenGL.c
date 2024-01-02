@@ -223,11 +223,48 @@ togl_destroyPbuffer(Togl *togl)
     [togl->pbuf release];
 }
 
+/* Declarations that Apple leaves out of gl.h */
+extern const GLubyte *glGetStringi(GLenum name, GLuint index);
+extern void glGetIntegerv(GLenum pname, GLint  *params);
+#define GL_NUM_EXTENSIONS 0x821D
+
 const char* Togl_GetExtensions(
     Togl *toglPtr)
 {
-    const GLubyte *extensions = glGetString(GL_EXTENSIONS);
-    return (const char *) extensions;
+    char *buffer = NULL;
+    int bufsize = 0;
+    int strsize = 0;
+    int num;
+    
+    if (toglPtr->profile == PROFILE_LEGACY) {
+	return (const char *)glGetString(GL_EXTENSIONS);
+    }
+    if (toglPtr->extensions) {
+	return toglPtr->extensions;
+    }
+    glGetIntegerv(GL_NUM_EXTENSIONS, &num);
+    buffer = malloc(1536);
+    if (!buffer) {
+	return NULL;
+    }
+    bufsize = 1536;
+    for (int i = 0; i < num; i++) {
+	char *ext = (char *)glGetStringi(GL_EXTENSIONS, i);
+	int len = strlen(ext);
+	if (strsize + len > bufsize) {
+	    buffer = realloc(buffer, len + 2*bufsize);
+	    if (buffer == 0) {
+		strsize = bufsize = 0;
+		return NULL;
+	    }
+	    bufsize = len + 2*bufsize;
+	}
+	strsize += strlcpy(buffer + strsize, ext, bufsize);
+	strsize += strlcpy(buffer + strsize, " ", bufsize);
+    }
+    buffer[strsize - 1] = '\0';
+    toglPtr->extensions = buffer;
+    return toglPtr->extensions;
 }
 
 /*

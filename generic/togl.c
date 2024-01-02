@@ -275,7 +275,8 @@ ToglWidgetObjCmd(
 		(void) Tcl_ListObjLength(interp, objPtr, &length);
 		Tcl_SetObjResult(interp, objPtr);
 	    } else {
-		Tcl_SetResult(toglPtr->interp, "No GL context is available.",
+		Tcl_SetResult(toglPtr->interp,
+		    "Could not fetch the GL_EXTENSIONS string.",
 		    TCL_STATIC);
 		result = TCL_ERROR;
 	    }
