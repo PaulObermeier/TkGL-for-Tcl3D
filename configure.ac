@@ -99,7 +99,7 @@ if test "${TEA_PLATFORM}" == "windows" ; then
     TEA_ADD_INCLUDES([-I\"${srcdir}/win\"])
 else
     if test "${TEA_WINDOWINGSYSTEM}" = "x11"; then
-        TEA_ADD_SOURCES([toglUnixGL.c])
+        TEA_ADD_SOURCES([toglGLX.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/unix\"])
 	TEA_ADD_LIBS([-lX11 -lGL])
     else
