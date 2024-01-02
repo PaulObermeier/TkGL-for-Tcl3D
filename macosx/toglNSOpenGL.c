@@ -226,16 +226,8 @@ togl_destroyPbuffer(Togl *togl)
 const char* Togl_GetExtensions(
     Togl *toglPtr)
 {
-    printf("context is %p\n", toglPtr->context);
-    printf("current context is %p\n", [NSOpenGLContext currentContext]);
-
-    const char *extensions = (const char*) glGetString(GL_EXTENSIONS);
-    if (extensions) {
-	printf("%s\n", extensions);
-    } else {
-	printf("glGetString returned NULL\n");
-    }
-    return (const char *) glGetString(GL_EXTENSIONS);
+    const GLubyte *extensions = glGetString(GL_EXTENSIONS);
+    return (const char *) extensions;
 }
 
 /*
