@@ -101,9 +101,10 @@ typedef struct Togl {
     int     ciColormapSize;     /* (Maximum) size of indexed colormap */
     HPBUFFERARB pbuf;
     int     pbufferLost;
+    Tcl_WideInt pixelFormat;
 #elif defined(TOGL_X11)
     GLXContext context;         /* OpenGL context for normal planes */
-    GLXContext overlayContext;  /* OpenGL context for overlay planes */
+  GLXContext overlayContext;  /* OpenGL context for overlay planes */
     GLXFBConfig fbcfg;          /* cached FBConfig */
     Tcl_WideInt pixelFormat;
     GLXPbuffer pbuf;

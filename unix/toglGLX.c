@@ -438,7 +438,6 @@ Togl_Update(
  * Togl_MakeWindow
  *
  *   Window creation function, invoked as a callback from Tk_MakeWindowExist.
- *   This is called instead of TkpMakeWindow and must always succeed.
  */
 
 Window

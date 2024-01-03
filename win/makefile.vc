@@ -1,6 +1,6 @@
 #------------------------------------------------------------- -*- makefile -*-
 #
-# Sample makefile for building Tcl extensions.
+# Makefile for building the Togl extensions.
 #
 # Basic build, test and install
 #   nmake /f makefile.vc INSTALLDIR=c:\path\to\tcl
@@ -17,7 +17,9 @@
 #------------------------------------------------------------------------------
 
 # The name of the package
-PROJECT = sample
+PROJECT = Togl
+
+PROJECT_REQUIRES_TK = 1
 
 !include "rules-ext.vc"
 
@@ -26,8 +28,8 @@ PROJECT = sample
 # hence it is under that condition. TMP_DIR is the output directory
 # defined by rules for object files.
 PRJ_OBJS = \
-	$(TMP_DIR)\tclsample.obj \
-	$(TMP_DIR)\sample.obj
+	$(TMP_DIR)\togl.obj \
+	$(TMP_DIR)\toglWGL.obj
 
 # Define any additional compiler flags that might be required for the project
 PRJ_DEFINES = -D_CRT_SECURE_NO_DEPRECATE
@@ -38,15 +40,15 @@ PRJ_DEFINES = $(PRJ_DEFINES) -I$(TMP_DIR)
 
 # We must define a pkgindex target that will create a pkgIndex.tcl
 # file in the $(OUT_DIR) directory. We can just redirect to the
-# default-pkgindex target for our sample extension.
+# default-pkgindex target for the Togl extension.
 pkgindex: default-pkgindex
 
 $(ROOT)\manifest.uuid:
    copy $(WIN_DIR)\gitmanifest.in $(ROOT)\manifest.uuid
-   git rev-parse HEAD >>$(ROOT)\manifest.uuid
+   /c/msys64/usr/bin/git rev-parse HEAD >>$(ROOT)\manifest.uuid
 
-$(TMP_DIR)\sampleUuid.h:	$(ROOT)\manifest.uuid
-	copy $(WIN_DIR)\sampleUuid.h.in+$(ROOT)\manifest.uuid $(TMP_DIR)\sampleUuid.h
+$(TMP_DIR)\toglUuid.h:	$(ROOT)\manifest.uuid
+	copy $(WIN_DIR)\toglUuid.h.in+$(ROOT)\manifest.uuid $(TMP_DIR)\toglUuid.h
 
 
 # The default install target only installs binaries and scripts so add
@@ -56,4 +58,4 @@ $(TMP_DIR)\sampleUuid.h:	$(ROOT)\manifest.uuid
 install: default-install-docs-n
 
 # Explicit dependency rules
-$(GENERICDIR)\tclsample.c : $(GENERICDIR)\sample.h $(TMP_DIR)\sampleUuid.h
+$(GENERICDIR)\togl.c : $(GENERICDIR)\togl.h $(TMP_DIR)\toglUuid.h
