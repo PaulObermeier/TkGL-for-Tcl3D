@@ -390,50 +390,6 @@ const char* Togl_GetExtensions(
 
 }
 
-int
-Togl_CreateGLContext(
-    Togl *toglPtr)
-{
-    GLXContext context = NULL;
-    GLXContext shareCtx = NULL;
-    /* If this is false, GLX reports GLXBadFBConfig. */
-    Bool direct = true;
-    //printf("Togl_CreateContext\n");
-
-    if (toglPtr->fbcfg == NULL) {
-	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
-	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
-    }
-    switch(toglPtr->profile) {
-    case PROFILE_3_2:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_3_2);
-	break;
-    case PROFILE_4_1:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_4_1);
-	break;
-    default:
-	//printf("default\n");
-	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
-	    shareCtx, direct);
-	break;
-    }
-    if (context == NULL) {
-	Tcl_SetResult(toglPtr->interp,
-            "Failed to create GL rendering context", TCL_STATIC);
-	return TCL_ERROR;
-    }
-    toglPtr->context = context;
-    return TCL_OK;
-}
-
-void
-Togl_Update(
-    const Togl *toglPtr) {
-    //printf("Togl_Update\n");
-}
-
 /*
  * Togl_MakeWindow
  *
@@ -687,6 +643,68 @@ Togl_MakeWindow(
         window = Tk_MakeWindow(tkwin, parent);
     }
     return window;
+}
+
+/*
+ *  Togl_CreateGLContext
+ *
+ *  Creates an OpenGL rendering context and assigns it to toglPtr->context.
+ *  The pixelFormat index is saved in ToglPtr->pixelFormat.
+ *
+ *  Returns a standard Tcl result.
+ */
+
+int
+Togl_CreateGLContext(
+    Togl *toglPtr)
+{
+    GLXContext context = NULL;
+    GLXContext shareCtx = NULL;
+    /* If this is false, GLX reports GLXBadFBConfig. */
+    Bool direct = true;
+    //printf("Togl_CreateContext\n");
+
+    if (toglPtr->fbcfg == NULL) {
+	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
+	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
+    }
+    switch(toglPtr->profile) {
+    case PROFILE_3_2:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_3_2);
+	break;
+    case PROFILE_4_1:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_4_1);
+	break;
+    default:
+	//printf("default\n");
+	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
+	    shareCtx, direct);
+	break;
+    }
+    if (context == NULL) {
+	Tcl_SetResult(toglPtr->interp,
+            "Failed to create GL rendering context", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    toglPtr->context = context;
+    return TCL_OK;
+}
+
+/*
+ *  Togl_Update
+ *
+ *    Called by ToglDisplay.  On macOS this sets the size of the NSView being
+ *    used as the OpenGL drawing surface.  Also, if the widget's NSView has
+ *    not been assigned to its NSOpenGLContext, that will be done here.
+ *    This step is not needed on other platforms, where the surface is
+ *    managed by the window.
+ */
+
+void
+Togl_Update(
+    const Togl *toglPtr) {
 }
 
 void

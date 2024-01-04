@@ -780,11 +780,31 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     return window;
 }
 
+/*
+ *  Togl_Update
+ *
+ *    Called by ToglDisplay.  On macOS this sets the size of the NSView being
+ *    used as the OpenGL drawing surface.  Also, if the widget's NSView has
+ *    not been assigned to its NSOpenGLContext, that will be done here.
+ *    This step is not needed on other platforms, where the surface is
+ *    managed by the window.
+ */
+
 void
 Togl_Update(
     const Togl *toglPtr) {
-    printf("Empty Togl_Update\n");
 }
+
+/*
+ *  Togl_CreateGLContext
+ *
+ *  Creates an OpenGL rendering context and assigns it to toglPtr->context.
+ *  On Windows it also creates a device context and assigns it to
+ *  ToglPtr->deviceContext.  The pixelFormat index is saved in
+ *  ToglPtr->pixelFormat.
+ *
+ *  Returns a standard Tcl result.
+ */
 
 int
 Togl_CreateGLContext(

@@ -270,9 +270,11 @@ const char* Togl_GetExtensions(
 /*
  *  Togl_Update
  *
- *    Called by ToglDisplay to set the size of the Togl widget.
- *    Also, if the widget's NSView has not been assigned to its
- *    NSOpenGLContext, that will be done here.    
+ *    Called by ToglDisplay.  On macOS this sets the size of the NSView being
+ *    used as the OpenGL drawing surface.  Also, if the widget's NSView has
+ *    not been assigned to its NSOpenGLContext, that will be done here.
+ *    This step is not needed on other platforms, where the surface is
+ *    managed by the window.
  */
 
 void Togl_Update(const Togl *toglPtr)
@@ -341,8 +343,10 @@ ReconfigureCB(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags,
 /*
  *  Togl_CreateGLContext
  *
- *  Creates an NSOpenGLContext and assigns it to toglPtr->context.  Returns a
- *  standard Tcl result.
+ *  Creates an NSOpenGLContext and assigns it to toglPtr->context.
+ *  The pixelFormat index is saved in ToglPtr->pixelFormat.
+ *
+ *  Returns a standard Tcl result.
  */
 
 int
