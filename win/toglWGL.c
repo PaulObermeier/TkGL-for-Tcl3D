@@ -27,7 +27,6 @@ void Togl_FreeResources(Togl *ToglPtr);
 #undef WIN32_LEAN_AND_MEAN
 #include <winnt.h>
 #include <objbase.h>
-#include <GL/wglext.h>
 #ifdef _MSC_VER
 #  include <strsafe.h>
 #  else
@@ -858,9 +857,10 @@ const char* Togl_GetExtensions(
 {
     const char *extensions = NULL;
     wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
-    if (wglGetCurrentContext() != NULL) {
-	printf("Failed to make context current\n");
+    if (wglGetCurrentContext() == NULL) {
+	return extensions;
     }
+    printf("GL version: %s\n", glGetString(GL_VERSION));
     getExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)
 	wglGetProcAddress("wglGetExtensionsStringARB");
     if (getExtensionsString == NULL)
