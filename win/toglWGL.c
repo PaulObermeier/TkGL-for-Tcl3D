@@ -445,7 +445,6 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     PIXELFORMATDESCRIPTOR pfd;
     int     width, height;
     Bool    createdPbufferDC = False;
-    printf("Togl_MakeWindow: pixelFormat = %lld\n", toglPtr->pixelFormat);
 
     if (toglPtr->badWindow) {
         return Tk_MakeWindow(tkwin, parent);
@@ -524,13 +523,14 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
      * Figure out which OpenGL context to use
      */
     toglPtr->deviceContext = GetDC(hwnd);
-    if (toglPtr->pixelFormat) {
-	printf("Togl_MakeWindow: pixelFormat is defined\n");
+    //    if (toglPtr->pixelFormat) {
+    //	printf("Togl_MakeWindow: pixelFormat is defined\n");
         if (!togl_describePixelFormat(toglPtr)) {
             Tcl_SetResult(toglPtr->interp,
                     "couldn't choose pixel format", TCL_STATIC);
             goto error;
         }
+#if 0
     } else {
 	printf("No pixelFormat\n");
 #if 0
@@ -540,6 +540,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
             goto error;
         }
     }
+#endif
     if (toglPtr->pBufferFlag) {
         toglPtr->pbuf = togl_createPbuffer(toglPtr);
         if (toglPtr->pbuf == NULL) {
@@ -588,37 +589,8 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
         }
         toglPtr->context = shareWith->context;
     } else {
-        switch(toglPtr->profile) {
-        case PROFILE_3_2:
-            if (createContextAttribs) {
-                toglPtr->context = createContextAttribs(
-                    toglPtr->deviceContext, 0, attributes_3_2);
-            } else {
-                fprintf(stderr,
-                        "Unable to use wglCreateContextAttribsARB to create "
-                        "OpenGL 3.2 context, falling back to "
-                        "wglCreateContext.\n");
-                toglPtr->context = wglCreateContext(toglPtr->deviceContext);
-            }
-            break;
-        case PROFILE_4_1:
-            if (createContextAttribs) {
-                toglPtr->context = createContextAttribs(
-                    toglPtr->deviceContext, 0, attributes_4_1);
-                } else {
-                fprintf(stderr,
-                        "Unable to use wglCreateContextAttribsARB to create "
-                        "OpenGL 4.1 context, falling back to "
-                        "wglCreateContext.\n");
-                toglPtr->context = wglCreateContext(toglPtr->deviceContext);
-            }
-            break;
-        default:
-            toglPtr->context = wglCreateContext(toglPtr->deviceContext);
-            break;
-        }
+	toglPtr->context = wglCreateContext(toglPtr->deviceContext);
     }
-
     if (toglPtr->shareList) {
         /* share display lists with existing togl widget */
         Togl   *shareWith = FindTogl(toglPtr, toglPtr->shareList);
@@ -798,10 +770,18 @@ Togl_Update(
 /*
  *  Togl_CreateGLContext
  *
- *  Creates an OpenGL rendering context and assigns it to toglPtr->context.
- *  On Windows it also creates a device context and assigns it to
- *  ToglPtr->deviceContext.  The pixelFormat index is saved in
- *  ToglPtr->pixelFormat.
+ *  Creates an OpenGL rendering context. On Windows this context
+ *  is associated with a hidden window, which is then destroyed.
+ *  The reason for this is that a rendering context can only be
+ *  created after a device context is created, and that requires
+ *  a window.  It is necessary to create a context before querying
+ *  the OpenGL server to find out what pixel formats are available.
+ *  This function chooses an optimal pixel format and saves it
+ *  in ToglPtr->pixelFormat.  When Togl_MakeWindow is called
+ *  later a new context is created using the saved pixelFormat.
+ *  
+ *  The OpenGL documentation acknowledges that this is weird, but
+ *  proclaims that it is just how WGL works.  So there.
  *
  *  Returns a standard Tcl result.
  */
@@ -826,6 +806,7 @@ Togl_CreateGLContext(
     };
     int pixelFormat;
     UINT numFormats;
+    printf("Togl_CreateContext\n");
     if (wglGetCurrentContext() != NULL) {
 	dc = wglGetCurrentDC();
     } else {
@@ -852,16 +833,7 @@ Togl_CreateGLContext(
 	DestroyWindow(test);
     }
     wglMakeCurrent(NULL, NULL);
-    toglPtr->deviceContext = dc;
-    toglPtr->context = rc;
     toglPtr->pixelFormat = pixelFormat;
-    if (createContextAttribs == NULL) {
-	createContextAttribs = (PFNWGLCREATECONTEXTATTRIBSARBPROC)
-	    wglGetProcAddress("wglCreateContextAttribsARB");
-    }
-    if (createContextAttribs == NULL) {
-	fprintf(stderr, "did not find wglCreateContextAttribsARB\n");
-    }
     return TCL_OK;
 }
 
