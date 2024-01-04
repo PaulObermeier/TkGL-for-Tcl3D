@@ -97,11 +97,12 @@ typedef struct Togl {
                                  * create a dummy window */
 #if defined(TOGL_WGL)
     HGLRC   context;            /* OpenGL rendering context */
-    HDC     toglGLHdc;          /* Device context */
+    HDC     deviceContext;      /* Device context */
     int     ciColormapSize;     /* (Maximum) size of indexed colormap */
     HPBUFFERARB pbuf;
-    int     pbufferLost;
+    int     pBufferLost;
     Tcl_WideInt pixelFormat;
+    const char *extensions;
 #elif defined(TOGL_X11)
     GLXContext context;         /* OpenGL context for normal planes */
   GLXContext overlayContext;  /* OpenGL context for overlay planes */
