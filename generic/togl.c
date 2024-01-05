@@ -179,8 +179,8 @@ ToglWidgetObjCmd(
     Togl *toglPtr = (Togl *)clientData;
     int result = TCL_OK;
     static const char *const toglOptions[] = {
-        "cget", "configure", "extensions", "postredisplay", "render",
-        "swapbuffers", "makecurrent", "takephoto", "loadbitmapfont",
+        "cget", "configure", "extensions", "glversion", "postredisplay",
+	"render", "swapbuffers", "makecurrent", "takephoto", "loadbitmapfont",
 	"unloadbitmapfont", "write", "uselayer", "showoverlay",
 	"hideoverlay", "postredisplayoverlay", "renderoverlay",
         "existsoverlay", "ismappedoverlay", "getoverlaytransparentvalue",
@@ -191,7 +191,7 @@ ToglWidgetObjCmd(
     enum
     {
         TOGL_CGET, TOGL_CONFIGURE, TOGL_EXTENSIONS,
-        TOGL_POSTREDISPLAY, TOGL_RENDER,
+        TOGL_GLVERSION, TOGL_POSTREDISPLAY, TOGL_RENDER,
         TOGL_SWAPBUFFERS, TOGL_MAKECURRENT, TOGL_TAKEPHOTO,
         TOGL_LOADBITMAPFONT, TOGL_UNLOADBITMAPFONT, TOGL_WRITE,
         TOGL_USELAYER, TOGL_SHOWOVERLAY, TOGL_HIDEOVERLAY,
@@ -276,7 +276,26 @@ ToglWidgetObjCmd(
 		Tcl_SetObjResult(interp, objPtr);
 	    } else {
 		Tcl_SetResult(toglPtr->interp,
-		    "Could not fetch the GL_EXTENSIONS string.",
+		    "The extensions string is not available now.",
+		    TCL_STATIC);
+		result = TCL_ERROR;
+	    }
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
+    case TOGL_GLVERSION:
+	/* Return the GL version string of the current context. */
+	if (objc == 2) {
+	    const char *version = (const char *)glGetString(GL_VERSION);
+	    Tcl_Obj *objPtr;
+	    if (version) {
+		objPtr = Tcl_NewStringObj(version, -1);
+		Tcl_SetObjResult(interp, objPtr);
+	    } else {
+		Tcl_SetResult(toglPtr->interp,
+		    "The version string is not available now.",
 		    TCL_STATIC);
 		result = TCL_ERROR;
 	    }

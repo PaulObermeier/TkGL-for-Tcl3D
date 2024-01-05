@@ -6,7 +6,7 @@
 
 /*
  * The following table defines the legal values for the -profile
- * option, which is only used by toglNSOpenGL.c.
+ * option:
  */
 
 static const char *const profileStrings[] = {
