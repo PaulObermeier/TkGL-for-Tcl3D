@@ -295,8 +295,9 @@ ToglWidgetObjCmd(
 		Tcl_SetObjResult(interp, objPtr);
 	    } else {
 		Tcl_SetResult(toglPtr->interp,
-		    "The version string is not available now.",
-		    TCL_STATIC);
+		    "The version string is not available until "
+                     "the widget is mapped.",
+		     TCL_STATIC);
 		result = TCL_ERROR;
 	    }
 	} else {
