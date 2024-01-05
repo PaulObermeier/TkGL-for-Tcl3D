@@ -789,7 +789,6 @@ int
 Togl_CreateGLContext(
     Togl *toglPtr)
 {
-    GLenum result;
     HDC     dc;  /* Device context handle */
     HGLRC   rc;  /* Rendering context handle */
     HWND    test = NULL;
@@ -819,14 +818,54 @@ Togl_CreateGLContext(
 	dc = GetDC(test);
 	rc = wglCreateContext(dc);
 	wglMakeCurrent(dc, rc);
-	result = glewInit();
-	if(result != GLEW_OK) {
-	    fprintf(stderr, "glewInit error: %s\n",
-		    glewGetErrorString(result));
+    }
+    
+    /*
+     * Now that we have a device context we can use wglGetProcAddress to fill
+     * in our function pointers.
+     */
+
+    createContextAttribs = (PFNWGLCREATECONTEXTATTRIBSARBPROC)
+	wglGetProcAddress("wglCreateContextAttribsARB");
+    getExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)
+	wglGetProcAddress("wglGetExtensionsStringARB");
+    /* Cache the extension string in the widget record. */
+    toglPtr->extensions = (const char *) getExtensionsString(dc);
+    if (strstr(toglPtr->extensions, "WGL_ARB_multisample") != NULL
+	|| strstr(toglPtr->extensions, "WGL_EXT_multisample") != NULL) {
+	hasMultisampling = TRUE;
+    }
+    if (strstr(toglPtr->extensions, "WGL_ARB_pixel_format") != NULL) {
+	choosePixelFormat = (PFNWGLCHOOSEPIXELFORMATARBPROC)
+	    wglGetProcAddress("wglChoosePixelFormatARB");
+	getPixelFormatAttribiv = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)
+	    wglGetProcAddress("wglGetPixelFormatAttribivARB");
+	if (choosePixelFormat == NULL || getPixelFormatAttribiv == NULL) {
+	    choosePixelFormat = NULL;
+	    getPixelFormatAttribiv = NULL;
 	}
     }
-    wglChoosePixelFormatARB(dc, attribList, NULL, 1,
-			    &pixelFormat, &numFormats);
+    if (choosePixelFormat == NULL
+	&& strstr(toglPtr->extensions, "WGL_EXT_pixel_format") != NULL) {
+	choosePixelFormat = (PFNWGLCHOOSEPIXELFORMATARBPROC)
+	    wglGetProcAddress("wglChoosePixelFormatEXT");
+	getPixelFormatAttribiv = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)
+	    wglGetProcAddress("wglGetPixelFormatAttribivEXT");
+	if (choosePixelFormat == NULL || getPixelFormatAttribiv == NULL) {
+	    choosePixelFormat = NULL;
+	    getPixelFormatAttribiv = NULL;
+	}
+    }
+    if (choosePixelFormat == NULL) {
+	Tcl_SetResult(toglPtr->interp,
+	    "Neither wglChoosePixelFormatARB nor wglChoosePixelFormatEXT "
+	    "are available in this openGL.\n"
+	    "We cannot create an OpenGL rendering context.",
+	    TCL_STATIC);
+	return 0;
+    }
+    choosePixelFormat(dc, attribList, NULL, 1, &pixelFormat,
+			  &numFormats);
     if (test != NULL) {
 	ReleaseDC(test, dc);
 	DestroyWindow(test);
@@ -855,21 +894,12 @@ Togl_SwapBuffers(
 const char* Togl_GetExtensions(
     Togl *toglPtr)
 {
-    const char *extensions = NULL;
-    wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
-    if (wglGetCurrentContext() == NULL) {
-	return extensions;
-    }
-    printf("GL version: %s\n", glGetString(GL_VERSION));
-    getExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)
-	wglGetProcAddress("wglGetExtensionsStringARB");
-    if (getExtensionsString == NULL)
-	getExtensionsString = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)
-	    wglGetProcAddress("wglGetExtensionsStringEXT");
-    if (getExtensionsString) {
-	extensions = getExtensionsString(toglPtr->deviceContext);
-    }
-    return extensions;
+    /*
+     * We already requested, and cached the extensions string in
+     * Togl_CreateGLContext, so we can just return the cached string.
+     */
+
+    return toglPtr->extensions;
 }
 
 void

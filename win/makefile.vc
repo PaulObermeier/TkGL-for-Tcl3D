@@ -20,7 +20,7 @@
 PROJECT = Togl
 
 PROJECT_REQUIRES_TK = 1
-PRJ_LIBS = glew-2.2.0/lib//Release/x64/glew32s.lib
+PRJ_LIBS =
 
 
 !include "rules-ext.vc"
