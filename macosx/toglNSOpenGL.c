@@ -93,7 +93,7 @@ togl_pixelFormat(Togl *togl)
       attribs[na++] = NSOpenGLProfileVersion3_2Core;
       break;
     case PROFILE_4_1:
-    case PROFILE_BEST;
+    case PROFILE_BEST:
       attribs[na++] = NSOpenGLPFAOpenGLProfile;
       attribs[na++] = NSOpenGLProfileVersion4_1Core;
       break;
@@ -345,7 +345,7 @@ ReconfigureCB(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags,
  *  Togl_CreateGLContext
  *
  *  Creates an NSOpenGLContext and assigns it to toglPtr->context.
- *  The pixelFormat index is saved in ToglPtr->pixelFormat.
+ *  The pixelFormat index is saved ins ToglPtr->pixelFormat.
  *
  *  Returns a standard Tcl result.
  */
