@@ -37,26 +37,91 @@ void Togl_FreeResources(Togl *ToglPtr);
 #    endif
 #endif
 
+/*
+ * In WGL, the Weird GL, construction of a GL rendering context requires
+ * first that a device context be created.  A device context is a pointer
+ * to an opaque type which describes a graphics card device driver.
+ */
+
+/*
+ * Static pointers to extension procedures provided by a graphics card device
+ * driver, rather than by the openGL dynamic library.  These cannot be
+ * initialized until a device context has been created.  Moreover, these
+ * procedures may or may not be provided by any given driver.
+ */
+
+static PFNWGLCREATECONTEXTATTRIBSARBPROC   createContextAttribs = NULL;
+static PFNWGLGETEXTENSIONSSTRINGARBPROC    getExtensionsString = NULL;
+static PFNWGLCHOOSEPIXELFORMATARBPROC      choosePixelFormat = NULL;
+static PFNWGLGETPIXELFORMATATTRIBIVARBPROC getPixelFormatAttribiv = NULL;
+static PFNWGLCREATEPBUFFERARBPROC          createPbuffer = NULL;
+static PFNWGLDESTROYPBUFFERARBPROC         destroyPbuffer = NULL;
+static PFNWGLGETPBUFFERDCARBPROC           getPbufferDC = NULL;
+static PFNWGLRELEASEPBUFFERDCARBPROC       releasePbufferDC = NULL;
+static PFNWGLQUERYPBUFFERARBPROC           queryPbuffer = NULL;
+
+static int hasMultisampling = FALSE;
+static int hasPbuffer = FALSE;
+static int hasARBPbuffer = FALSE;
+
+/*
+ * initializeDeviceProcs
+ *
+ * This function initializes the pointers above.  There must be a current
+ * device context for this to have any effect.  We do not check the
+ * extensions string to see if these procedures are available.  If
+ * one does not exist the wgpGetProcAddress will return NULL and
+ * the function pointer will remain NULL.  We do check if the pointer
+ * is NULL before setting a feature flag in the widget record.
+ */
+
+static void
+initializeDeviceProcs()
+{
+    createContextAttribs = (PFNWGLCREATECONTEXTATTRIBSARBPROC)
+	wglGetProcAddress("wglCreateContextAttribsARB");
+    getExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)
+	wglGetProcAddress("wglGetExtensionsStringARB");
+    /* First try to get the ARB versions of choosePixelFormat */
+    choosePixelFormat = (PFNWGLCHOOSEPIXELFORMATARBPROC)
+	wglGetProcAddress("wglChoosePixelFormatARB");
+    getPixelFormatAttribiv = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)
+	wglGetProcAddress("wglGetPixelFormatAttribivARB");
+    if (choosePixelFormat == NULL || getPixelFormatAttribiv == NULL) {
+	choosePixelFormat = NULL;
+	getPixelFormatAttribiv = NULL;
+    }
+    /* If that fails, fall back to the EXT versions, which have the same
+     *  signature, ignoring const.
+    `*/
+    if (choosePixelFormat == NULL) {
+	choosePixelFormat = (PFNWGLCHOOSEPIXELFORMATARBPROC)
+	    wglGetProcAddress("wglChoosePixelFrmatEXT");
+	getPixelFormatAttribiv = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)
+	    wglGetProcAddress("wglGetPixelFormatAttribivEXT");
+	if (choosePixelFormat == NULL || getPixelFormatAttribiv == NULL) {
+	    choosePixelFormat = NULL;
+	    getPixelFormatAttribiv = NULL;
+	}
+    }
+    createPbuffer = (PFNWGLCREATEPBUFFERARBPROC)
+	wglGetProcAddress("wglCreatePbufferARB");
+    destroyPbuffer = (PFNWGLDESTROYPBUFFERARBPROC)
+	wglGetProcAddress("wglDestroyPbufferARB");
+    getPbufferDC = (PFNWGLGETPBUFFERDCARBPROC)
+	wglGetProcAddress("wglGetPbufferDCARB");
+    releasePbufferDC = (PFNWGLRELEASEPBUFFERDCARBPROC)
+	wglGetProcAddress("wglReleasePbufferDCARB");
+    queryPbuffer = (PFNWGLQUERYPBUFFERARBPROC)           
+	wglGetProcAddress("wglQueryPbufferARB");
+}
+
 /* Maximum size of a logical palette corresponding to a colormap in color index 
  * mode. */
 #  define MAX_CI_COLORMAP_SIZE 4096
 #  define MAX_CI_COLORMAP_BITS 12
 
 static Bool ToglClassInitialized = False;
-
-/* TODO: move these statics into global structure */
-static PFNWGLGETEXTENSIONSSTRINGARBPROC getExtensionsString = NULL;
-static PFNWGLCHOOSEPIXELFORMATARBPROC choosePixelFormat;
-static PFNWGLGETPIXELFORMATATTRIBIVARBPROC getPixelFormatAttribiv;
-static PFNWGLCREATEPBUFFERARBPROC createPbuffer = NULL;
-static PFNWGLDESTROYPBUFFERARBPROC destroyPbuffer = NULL;
-static PFNWGLGETPBUFFERDCARBPROC getPbufferDC = NULL;
-static PFNWGLRELEASEPBUFFERDCARBPROC releasePbufferDC = NULL;
-static PFNWGLQUERYPBUFFERARBPROC queryPbuffer = NULL;
-static PFNWGLCREATECONTEXTATTRIBSARBPROC createContextAttribs = NULL;
-static int hasMultisampling = FALSE;
-static int hasPbuffer = FALSE;
-static int hasARBPbuffer = FALSE;
 
 /* Code to create RGB palette is taken from the GENGL sample program of Win32
  * SDK */
@@ -272,22 +337,20 @@ Win32WinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     return answer;
 }
 
-static const int attributes_3_2[] = {
-    WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-    WGL_CONTEXT_MINOR_VERSION_ARB, 2,
-    0
-};
-
-static const int attributes_4_1[] = {
-    WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
-    WGL_CONTEXT_MINOR_VERSION_ARB, 1,
-    0
-};
+/*
+ * toglCreateDeviceContext
+ *
+ * This Windows-only static function creates a WGL device context and saves a
+ * pointer to it in the Togl widget record.  The recommended and possibly only
+ * way to do this is to create a hidden window which owns a device context and
+ * call GetDC.  Once we have saved the device context we can destroy the
+ * window.
+ */
 
 static HWND
-toglCreateTestWindow(HWND parent)
+toglCreateDeviceContext()
 {
-    static char ClassName[] = "ToglTestWindow";
+    static char ClassName[] = "ToglFakeWindow";
     WNDCLASS wc;
     HINSTANCE instance = GetModuleHandle(NULL);
     HWND    wnd;
@@ -314,9 +377,9 @@ toglCreateTestWindow(HWND parent)
         }
     }
 
-    wnd = CreateWindow(ClassName, "test OpenGL capabilities",
+    wnd = CreateWindow(ClassName, "create WGL device context",
             WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-            0, 0, 1, 1, parent, NULL, instance, NULL);
+            0, 0, 1, 1, NULL, NULL, instance, NULL);
     if (wnd == NULL) {
         fprintf(stderr, "Unable to create temporary OpenGL window\n");
         return NULL;
@@ -375,7 +438,6 @@ togl_destroyPbuffer(Togl *toglPtr)
     destroyPbuffer(toglPtr->pbuf);
 }
 
-
 static int
 togl_describePixelFormat(Togl *toglPtr)
 {
@@ -429,6 +491,18 @@ togl_describePixelFormat(Togl *toglPtr)
  *
  *   Window creation function, invoked as a callback from Tk_MakeWindowExist.
  */
+
+static const int attributes_3_2[] = {       
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 3,       
+    WGL_CONTEXT_MINOR_VERSION_ARB, 2,       
+    0                                       
+};                                          
+                                            
+static const int attributes_4_1[] = {       
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 4,       
+    WGL_CONTEXT_MINOR_VERSION_ARB, 1,       
+    0                                       
+};                                          
 
 Window
 Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
@@ -588,7 +662,21 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
         }
         toglPtr->context = shareWith->context;
     } else {
+	// First inspect the context provided by choosePixelFormat
 	toglPtr->context = wglCreateContext(toglPtr->deviceContext);
+	wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
+	unsigned major, minor;
+	glGetIntegerv(0x821B, &major);
+	glGetIntegerv(0x821C, &minor);
+	printf("Got GLVersion %d.%d\n", major, minor);
+	// Here is where we should use createContextAttribs
+	if (createContextAttribs) {
+	    printf("Have createContextAttrigs.  Let's try it.");
+	    toglPtr->context = createContextAttribs(
+	        toglPtr->deviceContext, 0, attributes_4_1);
+	    wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
+	} else {
+	}
     }
     if (toglPtr->shareList) {
         /* share display lists with existing togl widget */
@@ -785,6 +873,29 @@ Togl_Update(
  *  Returns a standard Tcl result.
  */
 
+/* Used for the hidden test window. */
+static const int attribList[] = {
+    WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+    WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+    WGL_DOUBLE_BUFFER_ARB,  GL_TRUE,
+    WGL_PIXEL_TYPE_ARB,     WGL_TYPE_RGBA_ARB,
+    WGL_COLOR_BITS_ARB,     24,
+    WGL_ALPHA_BITS_ARB,     8,	
+    WGL_DEPTH_BITS_ARB,     24,
+    WGL_STENCIL_BITS_ARB,   8,
+    /* NOTE: these produce a broken context on my system
+       which supports 4.6
+       WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
+       WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+    */
+    0,
+};
+
+/*
+ * Togl_CreateGLContext
+ *
+ */
+
 int
 Togl_CreateGLContext(
     Togl *toglPtr)
@@ -792,23 +903,13 @@ Togl_CreateGLContext(
     HDC     dc;  /* Device context handle */
     HGLRC   rc;  /* Rendering context handle */
     HWND    test = NULL;
-    const int attribList[] = {
-	WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
-	WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
-	WGL_DOUBLE_BUFFER_ARB,  GL_TRUE,
-	WGL_PIXEL_TYPE_ARB,     WGL_TYPE_RGBA_ARB,
-	WGL_COLOR_BITS_ARB,     32,
-	WGL_DEPTH_BITS_ARB,     24,
-	WGL_STENCIL_BITS_ARB,   8,
-	0,
-    };
     int pixelFormat;
     UINT numFormats;
     printf("Togl_CreateContext\n");
     if (wglGetCurrentContext() != NULL) {
 	dc = wglGetCurrentDC();
     } else {
-	test = toglCreateTestWindow(None);
+	test = toglCreateDeviceContext();
 	if (test == NULL) {
 	    Tcl_SetResult(toglPtr->interp,
 			  "can't create dummy OpenGL window",
@@ -824,37 +925,15 @@ Togl_CreateGLContext(
      * Now that we have a device context we can use wglGetProcAddress to fill
      * in our function pointers.
      */
+    initializeDeviceProcs();
 
-    createContextAttribs = (PFNWGLCREATECONTEXTATTRIBSARBPROC)
-	wglGetProcAddress("wglCreateContextAttribsARB");
-    getExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)
-	wglGetProcAddress("wglGetExtensionsStringARB");
     /* Cache the extension string in the widget record. */
     toglPtr->extensions = (const char *) getExtensionsString(dc);
+
+    /* Check for multisampling. */
     if (strstr(toglPtr->extensions, "WGL_ARB_multisample") != NULL
 	|| strstr(toglPtr->extensions, "WGL_EXT_multisample") != NULL) {
 	hasMultisampling = TRUE;
-    }
-    if (strstr(toglPtr->extensions, "WGL_ARB_pixel_format") != NULL) {
-	choosePixelFormat = (PFNWGLCHOOSEPIXELFORMATARBPROC)
-	    wglGetProcAddress("wglChoosePixelFormatARB");
-	getPixelFormatAttribiv = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)
-	    wglGetProcAddress("wglGetPixelFormatAttribivARB");
-	if (choosePixelFormat == NULL || getPixelFormatAttribiv == NULL) {
-	    choosePixelFormat = NULL;
-	    getPixelFormatAttribiv = NULL;
-	}
-    }
-    if (choosePixelFormat == NULL
-	&& strstr(toglPtr->extensions, "WGL_EXT_pixel_format") != NULL) {
-	choosePixelFormat = (PFNWGLCHOOSEPIXELFORMATARBPROC)
-	    wglGetProcAddress("wglChoosePixelFormatEXT");
-	getPixelFormatAttribiv = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)
-	    wglGetProcAddress("wglGetPixelFormatAttribivEXT");
-	if (choosePixelFormat == NULL || getPixelFormatAttribiv == NULL) {
-	    choosePixelFormat = NULL;
-	    getPixelFormatAttribiv = NULL;
-	}
     }
     if (choosePixelFormat == NULL) {
 	Tcl_SetResult(toglPtr->interp,
