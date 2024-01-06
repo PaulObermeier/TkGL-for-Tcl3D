@@ -93,6 +93,7 @@ togl_pixelFormat(Togl *togl)
       attribs[na++] = NSOpenGLProfileVersion3_2Core;
       break;
     case PROFILE_4_1:
+    case PROFILE_BEST;
       attribs[na++] = NSOpenGLPFAOpenGLProfile;
       attribs[na++] = NSOpenGLProfileVersion4_1Core;
       break;

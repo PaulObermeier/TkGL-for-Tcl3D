@@ -18,7 +18,7 @@ typedef struct Togl Togl;
  */
 
 enum profile {
-  PROFILE_LEGACY, PROFILE_3_2, PROFILE_4_1
+    PROFILE_LEGACY, PROFILE_3_2, PROFILE_4_1, PROFILE_BEST
 };
 
 
@@ -103,9 +103,11 @@ typedef struct Togl {
     int     pBufferLost;
     Tcl_WideInt pixelFormat;
     const char *extensions;
+    unsigned int glmajor;       /* GL version chosen for the dummy window */
+    unsigned int glminor;
 #elif defined(TOGL_X11)
     GLXContext context;         /* OpenGL context for normal planes */
-  GLXContext overlayContext;  /* OpenGL context for overlay planes */
+  GLXContext overlayContext;    /* OpenGL context for overlay planes */
     GLXFBConfig fbcfg;          /* cached FBConfig */
     Tcl_WideInt pixelFormat;
     GLXPbuffer pbuf;
@@ -186,3 +188,11 @@ int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
 int Togl_CreateGLContext(Togl *toglPtr);
 const char* Togl_GetExtensions(Togl *toglPtr);
 void Togl_FreeResources(Togl *toglPtr);
+
+/*
+ * Local Variables:
+ * mode: c
+ * c-basic-offset: 4
+ * fill-column: 78
+ * End:
+ */

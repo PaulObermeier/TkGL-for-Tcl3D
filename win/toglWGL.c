@@ -44,10 +44,10 @@ void Togl_FreeResources(Togl *ToglPtr);
  */
 
 /*
- * Static pointers to extension procedures provided by a graphics card device
- * driver, rather than by the openGL dynamic library.  These cannot be
- * initialized until a device context has been created.  Moreover, these
- * procedures may or may not be provided by any given driver.
+ * These are tatic pointers to extension procedures provided by a graphics
+ * card device driver, rather than by the openGL dynamic library.  These
+ * cannot be initialized until a device context has been created.  Moreover,
+ * these procedures may or may not be provided by any given driver.
  */
 
 static PFNWGLCREATECONTEXTATTRIBSARBPROC   createContextAttribs = NULL;
@@ -68,11 +68,11 @@ static int hasARBPbuffer = FALSE;
  * initializeDeviceProcs
  *
  * This function initializes the pointers above.  There must be a current
- * device context for this to have any effect.  We do not check the
- * extensions string to see if these procedures are available.  If
- * one does not exist the wgpGetProcAddress will return NULL and
- * the function pointer will remain NULL.  We do check if the pointer
- * is NULL before setting a feature flag in the widget record.
+ * device context for this to have any effect.  We do not check the extensions
+ * string to see if these procedures are available.  If one does not exist
+ * wglGetProcAddress will return NULL and the function pointer will remain
+ * NULL.  We do check if the pointer is NULL before setting a feature flag in
+ * the widget record.
  */
 
 static void
@@ -492,6 +492,12 @@ togl_describePixelFormat(Togl *toglPtr)
  *   Window creation function, invoked as a callback from Tk_MakeWindowExist.
  */
 
+static const int attributes_2_1[] = {       
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 3,       
+    WGL_CONTEXT_MINOR_VERSION_ARB, 2,       
+    0                                       
+};                                          
+
 static const int attributes_3_2[] = {       
     WGL_CONTEXT_MAJOR_VERSION_ARB, 3,       
     WGL_CONTEXT_MINOR_VERSION_ARB, 2,       
@@ -519,6 +525,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     int     width, height;
     Bool    createdPbufferDC = False;
 
+    printf("Togl_MakeWindow\n");
     if (toglPtr->badWindow) {
         return Tk_MakeWindow(tkwin, parent);
     }
@@ -537,7 +544,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     scrnum = Tk_ScreenNumber(tkwin);
 
     /* 
-     * Windows and Mac OS X need the window created before OpenGL context
+     * Windows needs the window to created before an OpenGL context
      * is created.  So do that now and set the window variable. 
      */
     hInstance = Tk_GetHINSTANCE();
@@ -596,24 +603,11 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
      * Figure out which OpenGL context to use
      */
     toglPtr->deviceContext = GetDC(hwnd);
-    //    if (toglPtr->pixelFormat) {
-    //	printf("Togl_MakeWindow: pixelFormat is defined\n");
-        if (!togl_describePixelFormat(toglPtr)) {
-            Tcl_SetResult(toglPtr->interp,
-                    "couldn't choose pixel format", TCL_STATIC);
-            goto error;
-        }
-#if 0
-    } else {
-	printf("No pixelFormat\n");
-#if 0
-        toglPtr->pixelFormat = togl_pixelFormat(toglPtr, hwnd);
-#endif
-        if (toglPtr->pixelFormat == 0) {
-            goto error;
-        }
+    if (!togl_describePixelFormat(toglPtr)) {
+	Tcl_SetResult(toglPtr->interp,
+		      "couldn't choose pixel format", TCL_STATIC);
+	goto error;
     }
-#endif
     if (toglPtr->pBufferFlag) {
         toglPtr->pbuf = togl_createPbuffer(toglPtr);
         if (toglPtr->pbuf == NULL) {
@@ -648,7 +642,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     }
 
     /* 
-     * Create a new OpenGL rendering context.
+     * Create a new OpenGL rendering context, if necessary.
      */
     if (toglPtr->shareContext &&
 	FindTogl(toglPtr, toglPtr->shareContext)) {
@@ -662,20 +656,33 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
         }
         toglPtr->context = shareWith->context;
     } else {
-	// First inspect the context provided by choosePixelFormat
+	int *attributes = NULL;
+	printf("requested profile is %d; we have GL %u.%u\n", toglPtr->profile,
+	       toglPtr->glmajor, toglPtr->glminor);
 	toglPtr->context = wglCreateContext(toglPtr->deviceContext);
 	wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
-	unsigned major, minor;
-	glGetIntegerv(0x821B, &major);
-	glGetIntegerv(0x821C, &minor);
-	printf("Got GLVersion %d.%d\n", major, minor);
-	// Here is where we should use createContextAttribs
-	if (createContextAttribs) {
-	    printf("Have createContextAttrigs.  Let's try it.");
+	switch(toglPtr->profile) {
+	case PROFILE_LEGACY:
+	    attributes = attributes_2_1;
+	    break;
+	case PROFILE_3_2:
+	    attributes = attributes_3_2;
+	    break;
+	case PROFILE_4_1:
+	    attributes = attributes_4_1;
+	    break;
+	case PROFILE_BEST:
+	    break;
+	}
+	if (createContextAttribs && attributes) {
 	    toglPtr->context = createContextAttribs(
-	        toglPtr->deviceContext, 0, attributes_4_1);
+	        toglPtr->deviceContext, 0, attributes);
 	    wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
 	} else {
+	    fprintf(stderr,
+	        "WARNING: wglCreateContextAttribsARB is not provided by the\n"
+		"graphics card driver on this system.  A default rendering\n"
+		"context will be chosen, ignoring the -profile option.\n");
 	}
     }
     if (toglPtr->shareList) {
@@ -920,7 +927,7 @@ Togl_CreateGLContext(
 	rc = wglCreateContext(dc);
 	wglMakeCurrent(dc, rc);
     }
-    
+
     /*
      * Now that we have a device context we can use wglGetProcAddress to fill
      * in our function pointers.
@@ -929,6 +936,9 @@ Togl_CreateGLContext(
 
     /* Cache the extension string in the widget record. */
     toglPtr->extensions = (const char *) getExtensionsString(dc);
+
+    glGetIntegerv(GL_MAJOR_VERSION, &toglPtr->glmajor);
+    glGetIntegerv(GL_MINOR_VERSION, &toglPtr->glminor);
 
     /* Check for multisampling. */
     if (strstr(toglPtr->extensions, "WGL_ARB_multisample") != NULL

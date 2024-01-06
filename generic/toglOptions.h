@@ -10,7 +10,7 @@
  */
 
 static const char *const profileStrings[] = {
-    "legacy", "3_2", "4_1", NULL
+  "legacy", "3_2", "4_1", "best", NULL
 };
 
 static Tk_ObjCustomOption stereoOption;
