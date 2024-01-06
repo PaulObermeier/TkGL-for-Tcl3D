@@ -525,7 +525,6 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     int     width, height;
     Bool    createdPbufferDC = False;
 
-    printf("Togl_MakeWindow\n");
     if (toglPtr->badWindow) {
         return Tk_MakeWindow(tkwin, parent);
     }
@@ -657,8 +656,6 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
         toglPtr->context = shareWith->context;
     } else {
 	int *attributes = NULL;
-	printf("requested profile is %d; we have GL %u.%u\n", toglPtr->profile,
-	       toglPtr->glmajor, toglPtr->glminor);
 	toglPtr->context = wglCreateContext(toglPtr->deviceContext);
 	wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
 	switch(toglPtr->profile) {
@@ -912,7 +909,6 @@ Togl_CreateGLContext(
     HWND    test = NULL;
     int pixelFormat;
     UINT numFormats;
-    printf("Togl_CreateContext\n");
     if (wglGetCurrentContext() != NULL) {
 	dc = wglGetCurrentDC();
     } else {
@@ -968,7 +964,6 @@ void
 Togl_MakeCurrent(
     const Togl *toglPtr)
 {
-    printf("MakeCurrent\n");
     wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
 }
 
@@ -976,7 +971,6 @@ void
 Togl_SwapBuffers(
     const Togl *toglPtr)
 {
-    printf("SwapBuffers\n");
     wglSwapLayerBuffers(toglPtr->deviceContext, WGL_SWAP_MAIN_PLANE);
 }
 
@@ -1020,7 +1014,6 @@ void
 Togl_FreeResources(
     Togl *ToglPtr)
 {
-    printf("FreeResources\n");
 }
 
 /*

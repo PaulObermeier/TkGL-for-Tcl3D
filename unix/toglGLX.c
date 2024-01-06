@@ -22,6 +22,12 @@ void Togl_FreeResources(Togl *ToglPtr);
 static Colormap get_rgb_colormap(Display *dpy, int scrnum,
 		    const XVisualInfo *visinfo, Tk_Window tkwin);
 
+static const int attributes_2_1[] = {
+  GLX_CONTEXT_MAJOR_VERSION_ARB, 2,
+  GLX_CONTEXT_MINOR_VERSION_ARB, 1,
+  None
+};
+
 static const int attributes_3_2[] = {
   GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
   GLX_CONTEXT_MINOR_VERSION_ARB, 2,
@@ -210,8 +216,6 @@ togl_pixelFormat(
     glXQueryVersion(toglPtr->display, &major, &minor);
     extensions = glXQueryExtensionsString(toglPtr->display, scrnum);
 
-    //printf("GLX version is %d.%d\n", major, minor);
-    //printf("Profile = %d\n", toglPtr->profile);
     if (major > 1 || (major == 1 && minor >= 4)) {
         chooseFBConfig = glXChooseFBConfig;
         getFBConfigAttrib = glXGetFBConfigAttrib;
@@ -252,7 +256,6 @@ togl_pixelFormat(
 
         attribs[na++] = GLX_RENDER_TYPE;
         if (toglPtr->rgbaFlag) {
-	    //printf("Using rgba mode\n");
             /* RGB[A] mode */
             attribs[na++] = GLX_RGBA_BIT;
             attribs[na++] = GLX_RED_SIZE;
@@ -662,13 +665,16 @@ Togl_CreateGLContext(
     GLXContext shareCtx = NULL;
     /* If this is false, GLX reports GLXBadFBConfig. */
     Bool direct = true;
-    //printf("Togl_CreateContext\n");
 
     if (toglPtr->fbcfg == NULL) {
 	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
 	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
     }
     switch(toglPtr->profile) {
+    case PROFILE_LEGACY:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_2_1);
+	break;
     case PROFILE_3_2:
 	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
 	    shareCtx, direct, attributes_3_2);
@@ -678,7 +684,6 @@ Togl_CreateGLContext(
 	    shareCtx, direct, attributes_4_1);
 	break;
     default:
-	//printf("default\n");
 	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
 	    shareCtx, direct);
 	break;
@@ -717,14 +722,11 @@ void
 Togl_MakeCurrent(
     const Togl *toglPtr)
 {
-    //printf("MakeCurrent\n");
     if (!toglPtr->context) {
-	//printf("ToglMakeCurrent: no context\n");
 	return;
     }
     Display *display = toglPtr ? toglPtr->display : glXGetCurrentDisplay();
     if (!display) {
-	//printf("ToglMakeCurrent: no display\n");
 	return;
     }
     GLXDrawable drawable;
@@ -738,7 +740,6 @@ Togl_MakeCurrent(
     else
 	drawable = None;
     if (drawable == None) {
-	//printf("ToglMakeCurrent: no drawable\n");
     }
     (void) glXMakeCurrent(display, drawable,
 	     drawable ? toglPtr->context : NULL);
@@ -747,7 +748,6 @@ Togl_MakeCurrent(
 void
 Togl_SwapBuffers(
     const Togl *toglPtr){
-    //printf("SwapBuffers\n");
     if (toglPtr->doubleFlag) {
         glXSwapBuffers(Tk_Display(toglPtr->tkwin),
 		       Tk_WindowId(toglPtr->tkwin));
@@ -761,7 +761,7 @@ Togl_TakePhoto(
     Togl *toglPtr,
     Tk_PhotoHandle photo)
 {
-    //printf("TakePhoto\n");
+    printf("TakePhoto\n");
     return TCL_OK;
 }
 
@@ -771,7 +771,7 @@ Togl_CopyContext(
     const Togl *to,
     unsigned mask)
 {
-    //printf("CopyContext\n");
+    printf("CopyContext\n");
     return TCL_OK;
 }
 
@@ -857,7 +857,6 @@ get_rgb_colormap(Display *dpy,
 void Togl_FreeResources(
     Togl *ToglPtr)
 {
-    printf("FreeResources\n");
 }
 
 /*
