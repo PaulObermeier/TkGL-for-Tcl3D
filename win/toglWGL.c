@@ -349,6 +349,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     int     width, height;
     Bool    createdPbufferDC = False;
 
+    printf("MakeWindow\n");
     if (toglPtr->badWindow) {
         return Tk_MakeWindow(tkwin, parent);
     }
@@ -492,7 +493,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
 	case PROFILE_4_1:
 	    attributes = attributes_4_1;
 	    break;
-	case PROFILE_BEST:
+	case PROFILE_SYSTEM:
 	    break;
 	}
 	if (createContextAttribs && attributes) {
@@ -501,9 +502,8 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
 	    wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
 	} else {
 	    fprintf(stderr,
-	        "WARNING: wglCreateContextAttribsARB is not provided by the\n"
-		"graphics card driver on this system.  A default rendering\n"
-		"context will be chosen, ignoring the -profile option.\n");
+	    "WARNING: wglCreateContextAttribsARB is not being used.\n"
+	    "Your GL version will depend on your graphics driver.\n");
 	}
     }
     if (toglPtr->shareList) {

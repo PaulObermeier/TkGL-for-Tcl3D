@@ -18,7 +18,7 @@ typedef struct Togl Togl;
  */
 
 enum profile {
-    PROFILE_LEGACY, PROFILE_3_2, PROFILE_4_1, PROFILE_BEST
+    PROFILE_LEGACY, PROFILE_3_2, PROFILE_4_1, PROFILE_SYSTEM
 };
 
 

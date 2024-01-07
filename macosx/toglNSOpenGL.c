@@ -88,12 +88,16 @@ togl_pixelFormat(Togl *togl)
         return NULL;
     }
     switch(togl->profile) {
+    case PROFILE_DEFAULT:
+    case PROFILE_LEGACY:
+      attribs[na++] = NSOpenGLPFAOpenGLProfile;
+      attribs[na++] = NSOpenGLProfileVersion2_1Core;
+      break;
     case PROFILE_3_2:
       attribs[na++] = NSOpenGLPFAOpenGLProfile;
       attribs[na++] = NSOpenGLProfileVersion3_2Core;
       break;
     case PROFILE_4_1:
-    case PROFILE_BEST:
       attribs[na++] = NSOpenGLPFAOpenGLProfile;
       attribs[na++] = NSOpenGLProfileVersion4_1Core;
       break;
