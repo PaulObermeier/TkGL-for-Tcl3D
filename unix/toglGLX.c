@@ -700,11 +700,7 @@ Togl_CreateGLContext(
 /*
  *  Togl_Update
  *
- *    Called by ToglDisplay.  On macOS this sets the size of the NSView being
- *    used as the OpenGL drawing surface.  Also, if the widget's NSView has
- *    not been assigned to its NSOpenGLContext, that will be done here.
- *    This step is not needed on other platforms, where the surface is
- *    managed by the window.
+ *    Called by ToglDisplay.  Nothing needs to be done in X11.
  */
 
 void

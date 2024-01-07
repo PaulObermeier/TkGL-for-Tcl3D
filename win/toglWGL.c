@@ -45,7 +45,7 @@ void Togl_FreeResources(Togl *ToglPtr);
  */
 
 /*
- * These are tatic pointers to extension procedures provided by a graphics
+ * These are static pointers to extension procedures provided by a graphics
  * card device driver, rather than by the openGL dynamic library.  These
  * cannot be initialized until a device context has been created.  Moreover,
  * these procedures may or may not be provided by any given driver.
@@ -670,11 +670,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
 /*
  *  Togl_Update
  *
- *    Called by ToglDisplay.  On macOS this sets the size of the NSView being
- *    used as the OpenGL drawing surface.  Also, if the widget's NSView has
- *    not been assigned to its NSOpenGLContext, that will be done here.
- *    This step is not needed on other platforms, where the surface is
- *    managed by the window.
+ * Called by ToglDisplay.  Nothing needs to be done on Windows.
  */
 
 void
