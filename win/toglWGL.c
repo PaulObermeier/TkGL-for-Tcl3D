@@ -349,7 +349,6 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     int     width, height;
     Bool    createdPbufferDC = False;
 
-    printf("MakeWindow\n");
     if (toglPtr->badWindow) {
         return Tk_MakeWindow(tkwin, parent);
     }
@@ -832,8 +831,11 @@ Togl_CopyContext(
 
 void
 Togl_FreeResources(
-    Togl *ToglPtr)
+    Togl *toglPtr)
 {
+    wglMakeCurrent(toglPtr->deviceContext, NULL);
+    wglDeleteContext(toglPtr->context);
+    toglPtr->context = NULL;
 }
 
 /*
