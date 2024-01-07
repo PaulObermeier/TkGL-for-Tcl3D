@@ -9,3 +9,8 @@ pkgIndex.tcl
 *Uuid.h
 *.dylib
 *.so
+*.exe
+*.obj
+*.out
+Release*
+versions.vc

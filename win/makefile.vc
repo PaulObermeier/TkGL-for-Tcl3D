@@ -31,7 +31,8 @@ PRJ_LIBS =
 # defined by rules for object files.
 PRJ_OBJS = \
 	$(TMP_DIR)\togl.obj \
-	$(TMP_DIR)\toglWGL.obj
+	$(TMP_DIR)\toglWGL.obj \
+	$(TMP_DIR)\colormap.obj \
 
 # Define any additional compiler flags that might be required for the project
 PRJ_DEFINES = -D_CRT_SECURE_NO_DEPRECATE
