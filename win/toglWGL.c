@@ -181,7 +181,6 @@ toglCreateDeviceContext()
     HDC     dc;
     PIXELFORMATDESCRIPTOR pfd;
     int     pixelFormat;
-
     wc.style = CS_OWNDC;
     wc.lpfnWndProc = DefWindowProc;
     wc.cbClsExtra = 0;
@@ -200,7 +199,6 @@ toglCreateDeviceContext()
             return NULL;
         }
     }
-
     wnd = CreateWindow(ClassName, "create WGL device context",
             WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
             0, 0, 1, 1, NULL, NULL, instance, NULL);
@@ -209,7 +207,6 @@ toglCreateDeviceContext()
         return NULL;
     }
     dc = GetDC(wnd);
-
     memset(&pfd, 0, sizeof pfd);
     pfd.nSize = sizeof pfd;
     pfd.nVersion = 1;
@@ -223,12 +220,11 @@ toglCreateDeviceContext()
         ReleaseDC(wnd, dc);
         return NULL;
     }
-    if (!SetPixelFormat(dc, pixelFormat, &pfd)) {
+    if (!SetPixelFormat(dc, pixelFormat, NULL)) {
         fprintf(stderr, "Unable to set simple pixel format\n");
         ReleaseDC(wnd, dc);
         return NULL;
     }
-
     ShowWindow(wnd, SW_HIDE);   // make sure it's hidden
     ReleaseDC(wnd, dc);
     return wnd;
@@ -316,21 +312,27 @@ togl_describePixelFormat(Togl *toglPtr)
  *   Window creation function, invoked as a callback from Tk_MakeWindowExist.
  */
 
-static const int attributes_2_1[] = {       
-    WGL_CONTEXT_MAJOR_VERSION_ARB, 3,       
-    WGL_CONTEXT_MINOR_VERSION_ARB, 2,       
+static const int attributes_2_1[] = {    
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 2,
+    WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+    0                                       
+};                                          
+
+static const int attributes_3_0[] = {    
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+    WGL_CONTEXT_MINOR_VERSION_ARB, 0,
     0                                       
 };                                          
 
 static const int attributes_3_2[] = {       
-    WGL_CONTEXT_MAJOR_VERSION_ARB, 3,       
-    WGL_CONTEXT_MINOR_VERSION_ARB, 2,       
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+    WGL_CONTEXT_MINOR_VERSION_ARB, 2,
     0                                       
 };                                          
                                             
 static const int attributes_4_1[] = {       
-    WGL_CONTEXT_MAJOR_VERSION_ARB, 4,       
-    WGL_CONTEXT_MINOR_VERSION_ARB, 1,       
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
+    WGL_CONTEXT_MINOR_VERSION_ARB, 1,
     0                                       
 };                                          
 
@@ -441,12 +443,15 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
         ReleaseDC(hwnd, toglPtr->deviceContext);
         toglPtr->deviceContext = getPbufferDC(toglPtr->pbuf);
         createdPbufferDC = True;
-    } else if (SetPixelFormat(toglPtr->deviceContext,
-		  (int) toglPtr->pixelFormat, NULL) == FALSE) {
-        Tcl_SetResult(toglPtr->interp, "couldn't set pixel format",
-                TCL_STATIC);
-        goto error;
-    }    
+    } else {
+	bool result = SetPixelFormat(toglPtr->deviceContext,
+				     (int) toglPtr->pixelFormat, NULL);
+	if (result == FALSE) {
+	    Tcl_SetResult(toglPtr->interp, "couldn't set pixel format",
+			  TCL_STATIC);
+	    goto error;
+	}
+    }
     if (toglPtr->visInfo == NULL) {
         /* 
          * Create a new OpenGL rendering context. And check to share lists.
@@ -484,7 +489,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
 	wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
 	switch(toglPtr->profile) {
 	case PROFILE_LEGACY:
-	    attributes = attributes_2_1;
+	    attributes = attributes_3_0;
 	    break;
 	case PROFILE_3_2:
 	    attributes = attributes_3_2;
