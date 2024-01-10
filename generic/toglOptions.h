@@ -3,6 +3,10 @@
  * This file should only be included by togl.c,
  */
 #ifndef TOGL_OPTIONS_H
+/* For compatibility with Tcl 8.6 */ 
+#ifndef TCL_INDEX_NONE
+#define TCL_INDEX_NONE {-1}
+#endif
 
 /*
  * The following table defines the legal values for the -profile

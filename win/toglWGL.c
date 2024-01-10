@@ -489,7 +489,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
 	wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
 	switch(toglPtr->profile) {
 	case PROFILE_LEGACY:
-	    attributes = attributes_3_0;
+	    attributes = attributes_2_1;
 	    break;
 	case PROFILE_3_2:
 	    attributes = attributes_3_2;
@@ -733,6 +733,7 @@ Togl_CreateGLContext(
     HWND    test = NULL;
     int pixelFormat;
     UINT numFormats;
+    printf("Togl_CreateGLContext\n");
     if (wglGetCurrentContext() != NULL) {
 	dc = wglGetCurrentDC();
     } else {
@@ -788,14 +789,26 @@ void
 Togl_MakeCurrent(
     const Togl *toglPtr)
 {
-    wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
+    bool result = wglMakeCurrent(toglPtr->deviceContext,
+				 toglPtr->context);
+    if (!result) {
+	printf("wglMakeCurrent failed\n");
+    }
 }
 
 void
 Togl_SwapBuffers(
     const Togl *toglPtr)
 {
-    wglSwapLayerBuffers(toglPtr->deviceContext, WGL_SWAP_MAIN_PLANE);
+    if (toglPtr->doubleFlag) {
+        int result = SwapBuffers(toglPtr->deviceContext);
+	if (!result) {
+	    printf("SwapBuffers failed\n");
+	}
+    } else {
+	printf("Flushing\n");
+	glFlush();
+    }
 }
 
 const char* Togl_GetExtensions(

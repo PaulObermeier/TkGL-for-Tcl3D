@@ -122,7 +122,7 @@ ToglObjCmd(
 	    Tk_PathName(toglPtr->tkwin), ToglWidgetObjCmd, toglPtr,
 	    ToglDeletedProc);
     toglPtr->optionTable = optionTable;
-    if (Tk_InitOptions(interp, toglPtr, optionTable, tkwin)
+    if (Tk_InitOptions(interp, (void *) toglPtr, optionTable, tkwin)
 	    != TCL_OK) {
 	Tk_DestroyWindow(toglPtr->tkwin);
 	ckfree(toglPtr);
@@ -130,8 +130,8 @@ ToglObjCmd(
     }
     Tk_SetClassProcs(toglPtr->tkwin, &procs, toglPtr);
     Tk_CreateEventHandler(toglPtr->tkwin, ExposureMask|StructureNotifyMask,
-	    ToglObjEventProc, toglPtr);
-    if (Tk_SetOptions(interp, toglPtr, optionTable, objc - 2,
+	 ToglObjEventProc, (void *) toglPtr);
+    if (Tk_SetOptions(interp, (void *) toglPtr, optionTable, objc - 2,
 	    objv + 2, tkwin, NULL, NULL) != TCL_OK) {
 	goto error;
     }
@@ -222,7 +222,7 @@ ToglWidgetObjCmd(
 	    Tcl_WrongNumArgs(interp, 2, objv, "option");
 	    goto error;
 	}
-	resultObjPtr = Tk_GetOptionValue(interp, toglPtr,
+	resultObjPtr = Tk_GetOptionValue(interp, (void *)toglPtr,
 		toglPtr->optionTable, objv[2], toglPtr->tkwin);
 	if (resultObjPtr == NULL) {
 	    result = TCL_ERROR;
@@ -233,26 +233,26 @@ ToglWidgetObjCmd(
     case TOGL_CONFIGURE:
 	resultObjPtr = NULL;
 	if (objc == 2) {
-	    resultObjPtr = Tk_GetOptionInfo(interp, toglPtr,
+	    resultObjPtr = Tk_GetOptionInfo(interp, (void *)toglPtr,
 		    toglPtr->optionTable, NULL, toglPtr->tkwin);
 	    if (resultObjPtr == NULL) {
 		result = TCL_ERROR;
 	    }
 	} else if (objc == 3) {
-	    resultObjPtr = Tk_GetOptionInfo(interp, toglPtr,
+	    resultObjPtr = Tk_GetOptionInfo(interp, (void *)toglPtr,
 		    toglPtr->optionTable, objv[2], toglPtr->tkwin);
 	    if (resultObjPtr == NULL) {
 		result = TCL_ERROR;
 	    }
 	} else {
-	    result = Tk_SetOptions(interp, toglPtr,
+	    result = Tk_SetOptions(interp, (void *)toglPtr,
 		    toglPtr->optionTable, objc - 2, objv + 2,
 		    toglPtr->tkwin, NULL, NULL);
 	    if (result == TCL_OK) {
 		result = ToglConfigure(interp, toglPtr);
 	    }
 	    if (!toglPtr->updatePending) {
-		Tcl_DoWhenIdle(ToglDisplay, toglPtr);
+		Tcl_DoWhenIdle(ToglDisplay, (void *)toglPtr);
 		toglPtr->updatePending = 1;
 	    }
 	}
@@ -671,7 +671,7 @@ ToglDisplay(
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
     /* Simple test */
-#if 1
+#if 0
     printf("Running test\n");
     Togl_MakeCurrent(toglPtr);	
     glClearColor(1, 0, 1, 1);
@@ -711,11 +711,11 @@ DLLEXPORT int
 Togl_Init(
     Tcl_Interp* interp)		/* Tcl interpreter */
 {
-    if (Tcl_InitStubs(interp, "9.0", 0) == NULL) {
+    if (Tcl_InitStubs(interp, "8.6", 0) == NULL) {
 	return TCL_ERROR;
     }
 
-    if (Tk_InitStubs(interp, "9.0", 0) == NULL) {
+    if (Tk_InitStubs(interp, "8.6", 0) == NULL) {
         return TCL_ERROR;
     }
     if (Tcl_PkgProvideEx(interp, PACKAGE_NAME, PACKAGE_VERSION, NULL) != TCL_OK) {

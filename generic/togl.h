@@ -5,6 +5,12 @@
 #   define USE_TK_STUBS
 #endif
 #include "tk.h"
+
+/* For compatibility with Tcl 8.6 */ 
+#ifndef TCL_INDEX_NONE
+#define TCL_INDEX_NONE (-1)
+#define Tk_MakeWindow(tkwin, parent) TkpMakeWindow((TkWindow *)tkwin, parent)
+#endif
 #include "toglPlatform.h"
 
 /*
