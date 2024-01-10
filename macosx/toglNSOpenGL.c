@@ -757,7 +757,8 @@ void Togl_FreeResources(
 	ckfree((void *)toglPtr->extensions);
 	toglPtr->extensions = NULL;
     }
-    
+    [toglPtr->nsview removeFromSuperview];
+    toglPtr->nsview = nil;
 }
 /*
  * Local Variables:
