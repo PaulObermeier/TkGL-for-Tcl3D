@@ -105,9 +105,10 @@ typedef struct Togl {
     HGLRC   context;            /* OpenGL rendering context */
     HDC     deviceContext;      /* Device context */
     int     ciColormapSize;     /* (Maximum) size of indexed colormap */
+    HWND    child;              /* A child window - the rendring surface. */
     HPBUFFERARB pbuf;
     int     pBufferLost;
-    Tcl_WideInt pixelFormat;
+    int     pixelFormat;
     const char *extensions;
     unsigned int glmajor;       /* GL version chosen for the dummy window */
     unsigned int glminor;

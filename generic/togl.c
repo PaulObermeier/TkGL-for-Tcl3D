@@ -113,6 +113,7 @@ ToglObjCmd(
      * Allocate and initialize the widget record.
      */
 
+    printf("ObjCmd: Allocating Togl widget record\n");
     toglPtr = (Togl *)ckalloc(sizeof(Togl));
     memset(toglPtr, 0, sizeof(Togl));
     toglPtr->tkwin = tkwin;
@@ -135,9 +136,11 @@ ToglObjCmd(
 	    objv + 2, tkwin, NULL, NULL) != TCL_OK) {
 	goto error;
     }
+    printf("ObjCmd: configuring\n");
     if (ToglConfigure(interp, toglPtr) != TCL_OK) {
 	goto error;
     }
+    printf("ObjCmd: calling Togl_CreateGLContext\n");
     if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
          goto error;
     }
@@ -657,6 +660,7 @@ ToglDisplay(
 {
     Togl *toglPtr = (Togl *)clientData;
     Tk_Window tkwin = toglPtr->tkwin;
+    static int toggle = 0;
 
     printf("ToglDisplay\n");
     
@@ -671,11 +675,16 @@ ToglDisplay(
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
     /* Simple test */
-#if 0
     printf("Running test\n");
-    Togl_MakeCurrent(toglPtr);	
-    glClearColor(1, 0, 1, 1);
+    Togl_MakeCurrent(toglPtr);
+#if 1
+    if (toggle) {
+	glClearColor(0, 0, 1, 1);
+    } else {
+	glClearColor(1, 0, 1, 1);
+    }
     glClear(GL_COLOR_BUFFER_BIT);
+    toggle = (toggle + 1) % 2;
     Togl_SwapBuffers(toglPtr);
 #endif
 }
