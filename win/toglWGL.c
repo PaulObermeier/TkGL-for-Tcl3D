@@ -307,9 +307,23 @@ togl_describePixelFormat(Togl *toglPtr)
 }
 
 /*
- * Togl_MakeWindow
+ * Togl_CreateGLContext
  *
- *   Window creation function, invoked as a callback from Tk_MakeWindowExist.
+ * Creates an OpenGL rendering context for the widget.  It is called when the
+ * widget is created, before it is mapped. For Windows and macOS, creating a
+ * rendering context also requires creating the rendering surface, which is
+ * an NSView on macOS and a child window on Windows.  These fill the rectangle
+ * in the toplevel window occupied by the Togl widget.  GLX handles creation
+ * of the rendering surface automatically.
+ *
+ * On Windows it is necessary to create a dummy rendering context, associate
+ * with a hidden window, in order to query the OpenGL server to find out what
+ * pixel formats are available and to obtain pointers to functions needed to
+ * create a rendering context which are part of the graphics card driver
+ * rather than being provided by the openGL library.
+ *  
+ * The OpenGL documentation acknowledges that this is weird, but proclaims
+ * that it is just how WGL works.  So there.
  */
 
 static const int attributes_2_1[] = {    
@@ -335,26 +349,6 @@ static const int attributes_4_1[] = {
     WGL_CONTEXT_MINOR_VERSION_ARB, 1,
     0                                       
 };                                          
-
-
-/*
- *  Togl_CreateGLContext
- *
- *  Creates an OpenGL rendering context. On Windows this context
- *  is associated with a hidden window, which is then destroyed.
- *  The reason for this is that a rendering context can only be
- *  created after a device context is created, and that requires
- *  a window.  It is necessary to create a context before querying
- *  the OpenGL server to find out what pixel formats are available.
- *  This function chooses an optimal pixel format and saves it
- *  in ToglPtr->pixelFormat.  When Togl_MakeWindow is called
- *  later a new context is created using the saved pixelFormat.
- *  
- *  The OpenGL documentation acknowledges that this is weird, but
- *  proclaims that it is just how WGL works.  So there.
- *
- *  Returns a standard Tcl result.
- */
 
 /* Used for the hidden test window. */
 static const int attribList[] = {
@@ -546,15 +540,6 @@ toglCreateChildWindow(
     return TCL_ERROR;    
 }
 
-/*
- * Togl_CreateGLContext
- *
- * Called from ToglConfigure when a Togl widget is first created.
- *
- * Should create the hidden child window which will be the OpenGL
- * rendering surfact.
- */
-
 int
 Togl_CreateGLContext(
     Togl *toglPtr)
@@ -624,10 +609,17 @@ Togl_CreateGLContext(
     }
     return TCL_OK;
 }
+
 
 /*
  * Togl_MakeWindow
  *
+ * This is a callback function which is called by Tk_MakeWindowExist
+ * when the togl widget is mapped.  It sets up the widget record and
+ * does other Tk-related initialization.  This function is not allowed
+ * to fail.  I must return a valid X window identifier.  If something
+ * goes wrong, it sets the badWindow flag in the widget record,
+ * which is passed as the instanceData.
  */
 
 Window
@@ -833,17 +825,15 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     }
     return window;
 }
+
 
 /*
- *  Togl_Update
+ * Togl_MakeCurrent
  *
- * Called by ToglDisplay.  Nothing needs to be done on Windows.
+ * This is the key function of the Togl widget in its role as the
+ * manager of an NSOpenGL rendering context.  Must be called by
+ * a GL client before drawing into the widget.
  */
-
-void
-Togl_Update(
-    const Togl *toglPtr) {
-}
 
 void
 Togl_MakeCurrent(
@@ -855,6 +845,14 @@ Togl_MakeCurrent(
 	fprintf(stderr, "wglMakeCurrent failed\n");
     }
 }
+
+/*
+ * Togl_SwapBuffers
+ *
+ * Called by the GL Client after updating the image.  If the Togl
+ * is double-buffered it interchanges the front and back framebuffers.
+ * otherwise it calls GLFlush.
+ */
 
 void
 Togl_SwapBuffers(
@@ -869,6 +867,31 @@ Togl_SwapBuffers(
 	glFlush();
     }
 }
+
+
+/*
+ * ToglUpdate
+ *
+ * Called by ToglDisplay whenever the size of the Togl widget may
+ * have changed.  On macOS it adjusts the frame of the NSView that
+ * is being used as the rendering surface.  The other platforms
+ * handle the size changes automatically.
+ */
+
+void
+Togl_Update(
+    const Togl *toglPtr) {
+}
+
+
+/*
+ * Togl_GetExtensions
+ *
+ * Queries the rendering context for its extension string, a
+ * space-separated list of the names of all supported GL extensions.
+ * The string is cached in the widget record and the cached
+ * string is returned in subsequent calls.
+ */
 
 const char* Togl_GetExtensions(
     Togl *toglPtr)
@@ -880,12 +903,14 @@ const char* Togl_GetExtensions(
 
     return toglPtr->extensions;
 }
+
 
 void
 Togl_WorldChanged(
     void* instanceData){
     printf("WorldChanged\n");
 }
+
 
 int
 Togl_TakePhoto(
@@ -895,6 +920,7 @@ Togl_TakePhoto(
     printf("TakePhoto\n");
     return TCL_OK;
 }
+
 
 int
 Togl_CopyContext(
@@ -905,6 +931,7 @@ Togl_CopyContext(
     printf("CopyContext\n");
     return TCL_OK;
 }
+
 
 void
 Togl_FreeResources(
@@ -925,6 +952,7 @@ Togl_FreeResources(
 	toglPtr->child = NULL;
     }
 }
+
 
 /*
  * Local Variables:
