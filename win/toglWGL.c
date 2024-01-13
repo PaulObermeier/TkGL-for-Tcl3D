@@ -910,9 +910,20 @@ void
 Togl_FreeResources(
     Togl *toglPtr)
 {
-    wglMakeCurrent(toglPtr->deviceContext, NULL);
-    wglDeleteContext(toglPtr->context);
-    toglPtr->context = NULL;
+    printf("FreeResources\n");
+    wglMakeCurrent(NULL, NULL);
+    if (toglPtr->deviceContext) {
+        ReleaseDC(toglPtr->child, toglPtr->deviceContext);
+	toglPtr->deviceContext = NULL;
+    }
+    if (toglPtr->context) {
+	wglDeleteContext(toglPtr->context);
+	toglPtr->context = NULL;
+    }
+    if (toglPtr->child) {
+	DestroyWindow(toglPtr->child);
+	toglPtr->child = NULL;
+    }
 }
 
 /*

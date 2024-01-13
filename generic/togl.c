@@ -50,7 +50,12 @@ static void removeFromList(Togl *t);
  * ToglObjCmd --
  *
  *	This procedure is invoked to process the "togl" Tcl command. It
- *	creates a new "togl" widget.
+ *	creates a new "togl" widget.  After allocating and initializing
+ *      the widget record it first calls ToglConfigure to set up the
+ *      widget with the specified option values.  Then it calls
+ *      Togl_CreateGLContext to create a GL rendering context.  This
+ *      allows the client to start drawing before the widget gets
+ *      mapped.
  *
  * Results:
  *	A standard Tcl result.
@@ -136,14 +141,17 @@ ToglObjCmd(
 	    objv + 2, tkwin, NULL, NULL) != TCL_OK) {
 	goto error;
     }
+    /* Create a rendering context for drawing to the widget. */
+    printf("ObjCmd: Creating GL rendering context.\n");
+    if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
+         goto error;
+    }
+    /* Configure the widget to match the specified options. */
     printf("ObjCmd: configuring\n");
     if (ToglConfigure(interp, toglPtr) != TCL_OK) {
 	goto error;
     }
-    printf("ObjCmd: calling Togl_CreateGLContext\n");
-    if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
-         goto error;
-    }
+    /* Add this widget to the global list. */
     addToList(toglPtr);
     Tcl_SetObjResult(interp,
 	Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
@@ -663,7 +671,6 @@ ToglDisplay(
 
     toglPtr->updatePending = 0;
     if (!Tk_IsMapped(tkwin)) {
-	printf("%s is not mapped\n", Tk_PathName(tkwin));
 	return;
     }
     Togl_Update(toglPtr);
@@ -671,8 +678,9 @@ ToglDisplay(
         Togl_MakeCurrent(toglPtr);
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
-    /* Simple test */
+
 #if 0
+    /* Very simple test */
     static int toggle = 0;
     printf("Running test\n");
     Togl_MakeCurrent(toglPtr);

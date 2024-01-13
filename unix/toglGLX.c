@@ -385,18 +385,67 @@ togl_describePixelFormat(Togl *toglPtr)
     return True;
 }
 
-const char* Togl_GetExtensions(
+/*
+ * Togl_CreateGLContext
+ *
+ * Creates an OpenGL rendering context for the widget.  It is called when the
+ * widget is created, before it is mapped. For Windows and macOS, creating a
+ * rendering context also requires creating the rendering surface, which is
+ * an NSView on macOS and a child window on Windows.  These fill the rectangle
+ * in the toplevel window occupied by the Togl widget.  GLX handles creation
+ * of the rendering surface automatically.
+ */
+
+int
+Togl_CreateGLContext(
     Togl *toglPtr)
 {
-    int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
-    return glXQueryExtensionsString(toglPtr->display, scrnum);
+    GLXContext context = NULL;
+    GLXContext shareCtx = NULL;
+    /* If this is false, GLX reports GLXBadFBConfig. */
+    Bool direct = true;
 
+    if (toglPtr->fbcfg == NULL) {
+	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
+	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
+    }
+    switch(toglPtr->profile) {
+    case PROFILE_LEGACY:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_2_1);
+	break;
+    case PROFILE_3_2:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_3_2);
+	break;
+    case PROFILE_4_1:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_4_1);
+	break;
+    default:
+	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
+	    shareCtx, direct);
+	break;
+    }
+    if (context == NULL) {
+	Tcl_SetResult(toglPtr->interp,
+            "Failed to create GL rendering context", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    toglPtr->context = context;
+    return TCL_OK;
 }
+
 
 /*
  * Togl_MakeWindow
  *
- *   Window creation function, invoked as a callback from Tk_MakeWindowExist.
+ * This is a callback function which is called by Tk_MakeWindowExist
+ * when the togl widget is mapped.  It sets up the widget record and
+ * does other Tk-related initialization.  This function is not allowed
+ * to fail.  I must return a valid X window identifier.  If something
+ * goes wrong, it sets the badWindow flag in the widget record,
+ * which is passed as the instanceData.
  */
 
 Window
@@ -647,72 +696,14 @@ Togl_MakeWindow(
     }
     return window;
 }
-
+
 /*
- *  Togl_CreateGLContext
+ * Togl_MakeCurrent
  *
- *  Creates an OpenGL rendering context and assigns it to toglPtr->context.
- *  The pixelFormat index is saved in ToglPtr->pixelFormat.
- *
- *  Returns a standard Tcl result.
+ * This is the key function of the Togl widget in its role as the
+ * manager of an NSOpenGL rendering context.  Must be called by
+ * a GL client before drawing into the widget.
  */
-
-int
-Togl_CreateGLContext(
-    Togl *toglPtr)
-{
-    GLXContext context = NULL;
-    GLXContext shareCtx = NULL;
-    /* If this is false, GLX reports GLXBadFBConfig. */
-    Bool direct = true;
-
-    if (toglPtr->fbcfg == NULL) {
-	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
-	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
-    }
-    switch(toglPtr->profile) {
-    case PROFILE_LEGACY:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_2_1);
-	break;
-    case PROFILE_3_2:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_3_2);
-	break;
-    case PROFILE_4_1:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_4_1);
-	break;
-    default:
-	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
-	    shareCtx, direct);
-	break;
-    }
-    if (context == NULL) {
-	Tcl_SetResult(toglPtr->interp,
-            "Failed to create GL rendering context", TCL_STATIC);
-	return TCL_ERROR;
-    }
-    toglPtr->context = context;
-    return TCL_OK;
-}
-
-/*
- *  Togl_Update
- *
- *    Called by ToglDisplay.  Nothing needs to be done in X11.
- */
-
-void
-Togl_Update(
-    const Togl *toglPtr) {
-}
-
-void
-Togl_WorldChanged(
-    void* instanceData){
-    //printf("WorldChanged\n");
-}
 
 void
 Togl_MakeCurrent(
@@ -740,6 +731,15 @@ Togl_MakeCurrent(
     (void) glXMakeCurrent(display, drawable,
 	     drawable ? toglPtr->context : NULL);
 }
+
+
+/*
+ * Togl_SwapBuffers
+ *
+ * Called by the GL Client after updating the image.  If the Togl
+ * is double-buffered it interchanges the front and back framebuffers.
+ * otherwise it calls GLFlush.
+ */
 
 void
 Togl_SwapBuffers(
@@ -750,6 +750,49 @@ Togl_SwapBuffers(
     } else {
         glFlush();
     }
+}
+
+/*
+ * ToglUpdate
+ *
+ * Called by ToglDisplay whenever the size of the Togl widget may
+ * have changed.  On macOS it adjusts the frame of the NSView that
+ * is being used as the rendering surface.  The other platforms
+ * handle the size changes automatically.
+ */
+
+void
+Togl_Update(
+    const Togl *toglPtr) {
+}
+
+/*
+ * Togl_GetExtensions
+ *
+ * Queries the rendering context for its extension string, a
+ * space-separated list of the names of all supported GL extensions.
+ * The string is cached in the widget record and the cached
+ * string is returned in subsequent calls.
+ */
+
+const char* Togl_GetExtensions(
+    Togl *toglPtr)
+{
+    int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
+    return glXQueryExtensionsString(toglPtr->display, scrnum);
+
+}
+
+void Togl_FreeResources(
+    Togl *ToglPtr)
+{
+    // Does X11 need this?
+}
+
+void
+Togl_WorldChanged(
+    void* instanceData){
+    printf("WorldChanged\n");
 }
 
 int
@@ -848,11 +891,6 @@ get_rgb_colormap(Display *dpy,
      * If we get here, give up and just allocate a new colormap.
      */
     return XCreateColormap(dpy, root, visinfo->visual, AllocNone);
-}
-
-void Togl_FreeResources(
-    Togl *ToglPtr)
-{
 }
 
 /*

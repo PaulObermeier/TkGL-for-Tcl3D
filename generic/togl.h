@@ -38,17 +38,17 @@ typedef struct Togl {
     Display *display;		/* X token for the window's display. */
     Tcl_Interp *interp;		/* Interpreter associated with widget. */
     Tcl_Command widgetCmd;	/* Token for togl's widget command. */
-    Tk_OptionTable optionTable; /* Token representing the option specifications. */
-    int updatePending;		/* Non-zero if a call to ToglDisplay is scheduled. */
+    Tk_OptionTable optionTable; /* Token representing the option specs. */
+    int updatePending;		/* A call to ToglDisplay has been scheduled. */
     int x, y;                   /* Upper left corner of Togl widget */
     int width;	                /* Width of togl widget in pixels. */
     int height;	                /* Height of togl widget in pixels. */
     int setGrid;                /* positive is grid size for window manager */
     int contextTag;             /* contexts with same tag share display lists */
-    XVisualInfo *visInfo;       /* Visual info of the current */
+    XVisualInfo *visInfo;       /* Visual info of the widget */
     Tk_Cursor cursor;           /* The widget's cursor */
     int     timerInterval;      /* Time interval for timer in milliseconds */
-    Tcl_TimerToken timerHandler;        /* Token for togl's timer handler */
+    Tcl_TimerToken timerHandler;  /* Token for togl's timer handler */
     Bool    rgbaFlag;           /* configuration flags (ala GLX parameters) */
     int     rgbaRed;
     int     rgbaGreen;
@@ -181,20 +181,82 @@ Togl* FindToglWithSameContext(const Togl *togl);
 int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
 
 /*
- * Declarations of platform specific utility functions.
- * These consititute the interface of all platforms.
+ * The functions declared below constitute the interface
+ * provided by the platform code for each platform.
+ */
+
+/*
+ * Togl_CreateGLContext
+ *
+ * Creates an OpenGL rendering context for the widget.  It is called when the
+ * widget is created, before it is mapped. For Windows and macOS, creating a
+ * rendering context also requires creating the rendering surface, which is
+ * an NSView on macOS and a child window on Windows.  These fill the rectangle
+ * in the toplevel window occupied by the Togl widget.  GLX handles creation
+ * of the rendering surface automatically.
+ */
+
+int Togl_CreateGLContext(Togl *toglPtr);
+
+/*
+ * Togl_MakeWindow
+ *
+ * This is a callback function which is called by Tk_MakeWindowExist
+ * when the togl widget is mapped.  It sets up the widget record and
+ * does other Tk-related initialization.  This function is not allowed
+ * to fail.  I must return a valid X window identifier.  If something
+ * goes wrong, it sets the badWindow flag in the widget record,
+ * which is passed as the instanceData.
+ */
+
+Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
+
+/*
+ * Togl_MakeCurrent
+ *
+ * This is the key function of the Togl widget in its role as the
+ * manager of an NSOpenGL rendering context.  Must be called by
+ * a GL client before drawing into the widget.
+ */
+
+void Togl_MakeCurrent(const Togl *toglPtr);
+
+/*
+ * Togl_SwapBuffers
+ *
+ * Called by the GL Client after updating the image.  If the Togl
+ * is double-buffered it interchanges the front and back framebuffers.
+ * otherwise it calls GLFlush.
+ */
+
+void Togl_SwapBuffers(const Togl *toglPtr);
+
+/*
+ * ToglUpdate
+ *
+ * Called by ToglDisplay whenever the size of the Togl widget may
+ * have changed.  On macOS it adjusts the frame of the NSView that
+ * is being used as the rendering surface.  The other platforms
+ * handle the size changes automatically.
  */
 
 void Togl_Update(const Togl *toglPtr);
-Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
-void Togl_WorldChanged(void* instanceData);
-void Togl_MakeCurrent(const Togl *toglPtr);
-void Togl_SwapBuffers(const Togl *toglPtr);
+
+/*
+ * Togl_GetExtensions
+ *
+ * Queries the rendering context for its extension string, a
+ * space-separated list of the names of all supported GL extensions.
+ * The string is cached in the widget record and the cached
+ * string is returned in subsequent calls.
+ */
+
+const char* Togl_GetExtensions(Togl *toglPtr);
+
+void Togl_FreeResources(Togl *toglPtr);
 int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
 int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
-int Togl_CreateGLContext(Togl *toglPtr);
-const char* Togl_GetExtensions(Togl *toglPtr);
-void Togl_FreeResources(Togl *toglPtr);
+void Togl_WorldChanged(void* instanceData);
 
 /*
  * Local Variables:
