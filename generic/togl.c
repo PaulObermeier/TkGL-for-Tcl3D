@@ -660,10 +660,7 @@ ToglDisplay(
 {
     Togl *toglPtr = (Togl *)clientData;
     Tk_Window tkwin = toglPtr->tkwin;
-    static int toggle = 0;
 
-    printf("ToglDisplay\n");
-    
     toglPtr->updatePending = 0;
     if (!Tk_IsMapped(tkwin)) {
 	printf("%s is not mapped\n", Tk_PathName(tkwin));
@@ -675,9 +672,10 @@ ToglDisplay(
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
     /* Simple test */
+#if 0
+    static int toggle = 0;
     printf("Running test\n");
     Togl_MakeCurrent(toglPtr);
-#if 1
     if (toggle) {
 	glClearColor(0, 0, 1, 1);
     } else {

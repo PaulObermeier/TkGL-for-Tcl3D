@@ -374,85 +374,7 @@ static const int attribList[] = {
     0,
 };
 
-/*
- * Togl_CreateGLContext
- *
- * Called from ToglConfigure when a Togl widget is first created.
- *
- * Should create the hidden child window which will be the OpenGL
- * rendering surfact.
- */
-
-
-int
-Togl_CreateGLContext(
-    Togl *toglPtr)
-{
-    HDC     dc;  /* Device context handle */
-    HGLRC   rc;  /* Rendering context handle */
-    HWND    dummy = NULL;
-    int pixelFormat;
-    UINT numFormats;
-    printf("Togl_CreateGLContext for %s\n", Tk_PathName(toglPtr->tkwin));
-    if (wglGetCurrentContext() != NULL) {
-	dc = wglGetCurrentDC();
-    } else {
-	dummy = toglCreateDummyWindow();
-	if (dummy == NULL) {
-	    Tcl_SetResult(toglPtr->interp,
-			  "can't create dummy OpenGL window",
-			  TCL_STATIC);
-	    return 0;
-	}
-	dc = GetDC(dummy);
-	rc = wglCreateContext(dc);
-	wglMakeCurrent(dc, rc);
-    }
-
-    /*
-     * Now that we have a device context we can use wglGetProcAddress to fill
-     * in our function pointers.
-     */
-    initializeDeviceProcs();
-
-    /* Cache the extension string in the widget record. */
-    toglPtr->extensions = (const char *) getExtensionsString(dc);
-
-    glGetIntegerv(GL_MAJOR_VERSION, &toglPtr->glmajor);
-    glGetIntegerv(GL_MINOR_VERSION, &toglPtr->glminor);
-
-    /* Check for multisampling. */
-    if (strstr(toglPtr->extensions, "WGL_ARB_multisample") != NULL
-	|| strstr(toglPtr->extensions, "WGL_EXT_multisample") != NULL) {
-	hasMultisampling = TRUE;
-    }
-
-    /* Get a suitable pixel format. */
-    if (choosePixelFormat == NULL) {
-	Tcl_SetResult(toglPtr->interp,
-	    "Neither wglChoosePixelFormatARB nor wglChoosePixelFormatEXT "
-	    "are available in this openGL.\n"
-	    "We cannot create an OpenGL rendering context.",
-	    TCL_STATIC);
-	return 0;
-    }
-    choosePixelFormat(dc, attribList, NULL, 1, &pixelFormat,
-			  &numFormats);
-
-    /* Destroy the dummy window. */
-    wglMakeCurrent(NULL, NULL);
-    if (dummy != NULL) {
-	ReleaseDC(dummy, dc);
-	DestroyWindow(dummy);
-    } else {
-	return TCL_ERROR;
-    }
-
-    /* Save the pixel format number in the widget record. */
-    toglPtr->pixelFormat = pixelFormat;
-    return TCL_OK;
-}
-
+static int
 toglCreateChildWindow(
     Togl *toglPtr)
 {
@@ -461,7 +383,9 @@ toglCreateChildWindow(
     int     width, height;
     HINSTANCE hInstance= Tk_GetHINSTANCE();
     Bool    createdPbufferDC = False;
-
+    // We assume this is called with the dummy context current
+    // and with a pixelformat stored in the widget record.
+    
     if (!ToglClassInitialized) {
         WNDCLASS ToglClass;
 
@@ -499,27 +423,26 @@ toglCreateChildWindow(
     }
     toglPtr->child = CreateWindowEx(WS_EX_NOPARENTNOTIFY, TOGL_CLASS_NAME,
 	 NULL, style, 0, 0, width, height, parentWin, NULL, hInstance, NULL);
-    if (toglPtr->child) {
+    if (!toglPtr->child) {
       char *msg;
       DWORD errorcode = GetLastError();
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER,
 		    NULL, errorcode, 0, (LPSTR)&msg, 0, NULL);
       fprintf(stderr, "%s\n", msg);
+      goto error;
     }
+    SetWindowLongPtr(toglPtr->child, 0, (LONG_PTR) toglPtr);
     SetWindowPos(toglPtr->child, HWND_TOP, 0, 0, 0, 0,
 		 SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
-    SetWindowLongPtr(toglPtr->child, 0, (LONG_PTR) toglPtr);
     if (toglPtr->pBufferFlag) {
         ShowWindow(toglPtr->child, SW_HIDE); /* make sure it's hidden */
     }
 
-    /* 
-     * Figure out which OpenGL context to use
-     */
-    toglPtr->deviceContext = GetDC(toglPtr->child);
+    /* Update the widget record from the pixel formatl. */
     if (!togl_describePixelFormat(toglPtr)) {
 	Tcl_SetResult(toglPtr->interp,
-		      "couldn't choose pixel format", TCL_STATIC);
+	    "Pixel format is not consistent with widget configurait.",
+	    TCL_STATIC);
 	goto error;
     }
     if (toglPtr->pBufferFlag) {
@@ -533,18 +456,22 @@ toglCreateChildWindow(
         toglPtr->deviceContext = getPbufferDC(toglPtr->pbuf);
         createdPbufferDC = True;
     } else {
+	/* nstalling the pixelFormat in the child device context */
+	toglPtr->deviceContext = GetDC(toglPtr->child);
+	// FIX ME: release it when the child is destroyed.
 	bool result = SetPixelFormat(toglPtr->deviceContext,
 				     (int) toglPtr->pixelFormat, NULL);
 	if (result == FALSE) {
-	    Tcl_SetResult(toglPtr->interp, "couldn't set pixel format",
-			  TCL_STATIC);
+	    Tcl_SetResult(toglPtr->interp,
+		"Couldn't set child's pixel format", TCL_STATIC);
 	    goto error;
 	}
     }
-
+    
     /* 
-     * Create a new OpenGL rendering context, if necessary.
+     * Create an OpenGL rendering context for the child, if necessary.
      */
+    
     if (toglPtr->shareContext &&
 	FindTogl(toglPtr, toglPtr->shareContext)) {
         /* share OpenGL context with existing Togl widget */
@@ -552,14 +479,12 @@ toglCreateChildWindow(
 
         if (toglPtr->pixelFormat != shareWith->pixelFormat) {
             Tcl_SetResult(toglPtr->interp,
-                    "unable to share OpenGL context", TCL_STATIC);
+                    "Unable to share OpenGL context.", TCL_STATIC);
             goto error;
         }
         toglPtr->context = shareWith->context;
     } else {
 	int *attributes = NULL;
-	toglPtr->context = wglCreateContext(toglPtr->deviceContext);
-	wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
 	switch(toglPtr->profile) {
 	case PROFILE_LEGACY:
 	    attributes = attributes_2_1;
@@ -576,7 +501,7 @@ toglCreateChildWindow(
 	if (createContextAttribs && attributes) {
 	    toglPtr->context = createContextAttribs(
 	        toglPtr->deviceContext, 0, attributes);
-	    wglMakeCurrent(toglPtr->deviceContext, toglPtr->context);
+	    Togl_MakeCurrent(toglPtr);
 	} else {
 	    fprintf(stderr,
 	    "WARNING: wglCreateContextAttribsARB is not being used.\n"
@@ -600,7 +525,7 @@ toglCreateChildWindow(
         Tcl_SetResult(toglPtr->interp,
                 "Could not create rendering context", TCL_STATIC);
         goto error;
-    }
+    }    
     return TCL_OK;
 
  error:
@@ -611,8 +536,8 @@ toglCreateChildWindow(
         }
 	if (toglPtr->child) {
 	    if (toglPtr->deviceContext) {
-            ReleaseDC(toglPtr->child, toglPtr->deviceContext);
-	    toglPtr->deviceContext = NULL;
+                ReleaseDC(toglPtr->child, toglPtr->deviceContext);
+		toglPtr->deviceContext = NULL;
 	    }
 	    DestroyWindow(toglPtr->child);
 	    toglPtr->child = NULL;
@@ -620,7 +545,85 @@ toglCreateChildWindow(
     }
     return TCL_ERROR;    
 }
-///////////
+
+/*
+ * Togl_CreateGLContext
+ *
+ * Called from ToglConfigure when a Togl widget is first created.
+ *
+ * Should create the hidden child window which will be the OpenGL
+ * rendering surfact.
+ */
+
+int
+Togl_CreateGLContext(
+    Togl *toglPtr)
+{
+    HDC     dc;  /* Device context handle */
+    HGLRC   rc;  /* Rendering context handle */
+    HWND    dummy = NULL;
+    int pixelFormat;
+    UINT numFormats;
+
+    dummy = toglCreateDummyWindow();
+    if (dummy == NULL) {
+	Tcl_SetResult(toglPtr->interp,
+		      "can't create dummy OpenGL window",
+		      TCL_STATIC);
+	return 0;
+    }
+    dc = GetDC(dummy);
+    rc = wglCreateContext(dc);
+    wglMakeCurrent(dc, rc);
+    ReleaseDC(dummy, dc);
+
+    /*
+     * Now that we have a device context we can use wglGetProcAddress to fill
+     * in our function pointers.
+     */
+    initializeDeviceProcs();
+
+    /* Cache the extension string in the widget record. */
+    toglPtr->extensions = (const char *) getExtensionsString(dc);
+
+    glGetIntegerv(GL_MAJOR_VERSION, &toglPtr->glmajor);
+    glGetIntegerv(GL_MINOR_VERSION, &toglPtr->glminor);
+
+    /* Check for multisampling. */
+    if (strstr(toglPtr->extensions, "WGL_ARB_multisample") != NULL
+	|| strstr(toglPtr->extensions, "WGL_EXT_multisample") != NULL) {
+	hasMultisampling = TRUE;
+    }
+
+    /* Get a suitable pixel format. */
+    if (choosePixelFormat == NULL) {
+	Tcl_SetResult(toglPtr->interp,
+	    "Neither wglChoosePixelFormatARB nor wglChoosePixelFormatEXT "
+	    "are available in this openGL.\n"
+	    "We cannot create an OpenGL rendering context.",
+	    TCL_STATIC);
+	return TCL_ERROR;
+    }
+    choosePixelFormat(dc, attribList, NULL, 1, &pixelFormat,
+			  &numFormats);
+
+    /* Save the pixel format and contexts in the widget record. */
+    toglPtr->pixelFormat = pixelFormat;
+    if (toglCreateChildWindow(toglPtr) != TCL_OK) {
+	fprintf(stderr, "Failed to create child window.\n");
+	return TCL_ERROR;
+    }
+
+    toglCreateChildWindow(toglPtr);
+    
+    /* Destroy the dummy window. */
+    if (dummy != NULL) {
+	DestroyWindow(dummy);
+    } else {
+	return TCL_ERROR;
+    }
+    return TCL_OK;
+}
 
 /*
  * Togl_MakeWindow
@@ -631,24 +634,29 @@ Window
 Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
 {
     Togl   *toglPtr = (Togl *) instanceData;
-    Display *dpy;
+    Display *dpy = Tk_Display(tkwin);
+    int     scrnum = Tk_ScreenNumber(tkwin);
     Colormap cmap;
-    int     scrnum;
     Window  window = None;
     PIXELFORMATDESCRIPTOR pfd;
     Bool    createdPbufferDC = False;
 
     if (toglPtr->badWindow) {
 	/*
-	 * This function has been called before and it failed.
-	 * Do we really need this?  Apparently it is here
-	 * because this function is not allowed to fail.
-	 * It must return a valid X Window Id.
+	 * This function has been called before and it failed.  This test
+	 * exists because this callback function is not allowed to fail.  It
+	 * must return a valid X Window Id.
 	 */
         return Tk_MakeWindow(tkwin, parent);
     }
-
-    /* for color index mode photos */
+    /* We require that ToglCreateGLContext has been called. */
+    if (toglPtr->child) {
+	window = Tk_AttachHWND(tkwin, toglPtr->child);
+    } else {
+	goto error;
+    }
+    
+    /* For color index mode photos */
     if (toglPtr->redMap)
         free(toglPtr->redMap);
     if (toglPtr->greenMap)
@@ -657,14 +665,6 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
         free(toglPtr->blueMap);
     toglPtr->redMap = toglPtr->greenMap = toglPtr->blueMap = NULL;
     toglPtr->mapSize = 0;
-    dpy = Tk_Display(tkwin);
-    scrnum = Tk_ScreenNumber(tkwin);
-
-    if (toglCreateChildWindow(toglPtr) != TCL_OK) {
-	printf("Failed to create child\n");
-	goto error;
-    }
-    window = Tk_AttachHWND(tkwin, toglPtr->child);
 
     if ( toglPtr->pBufferFlag) {
 	DescribePixelFormat(toglPtr->deviceContext,
@@ -757,6 +757,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
         }
     }
 #endif
+
     if (!toglPtr->rgbaFlag) {
         int     index_size;
 
@@ -774,6 +775,7 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
             toglPtr->blueMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
         }
     }
+
 #ifdef HAVE_AUTOSTEREO
     if (toglPtr->stereo == TOGL_STEREO_NATIVE) {
         if (!toglPtr->as_initialized) {
@@ -796,7 +798,8 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     /* Create visual info */
     if (toglPtr->visInfo == NULL) {
         /* 
-         * Create a new OpenGL rendering context. And check to share lists.
+         * Create a new OpenGL rendering context. And check whether
+	 * to share lists.
          */
         Visual *visual;
         /* Just for portability, define the simplest visinfo */
@@ -810,8 +813,10 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
         toglPtr->visInfo->depth = visual->bits_per_rgb;
 #endif
     }
-        /* Make sure Tk knows to switch to the new colormap when the cursor is over
-     * this window when running in color index mode. */
+    /*
+     * Make sure Tk knows to switch to the new colormap when the cursor is
+     * over this window when running in color index mode.
+     */
     (void) Tk_SetWindowVisual(tkwin, toglPtr->visInfo->visual,
             toglPtr->visInfo->depth, cmap);
 
@@ -819,7 +824,6 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, ClientData instanceData)
     return window;
 
  error:
-
     toglPtr->badWindow = True;
     if (toglPtr->deviceContext) {
         if (createdPbufferDC) {
@@ -848,7 +852,7 @@ Togl_MakeCurrent(
     bool result = wglMakeCurrent(toglPtr->deviceContext,
 				 toglPtr->context);
     if (!result) {
-	printf("wglMakeCurrent failed\n");
+	fprintf(stderr, "wglMakeCurrent failed\n");
     }
 }
 
@@ -859,10 +863,9 @@ Togl_SwapBuffers(
     if (toglPtr->doubleFlag) {
         int result = SwapBuffers(toglPtr->deviceContext);
 	if (!result) {
-	    printf("SwapBuffers failed\n");
+	    fprintf(stderr, "SwapBuffers failed\n");
 	}
     } else {
-	printf("Flushing\n");
 	glFlush();
     }
 }
