@@ -155,6 +155,10 @@ ToglObjCmd(
     addToList(toglPtr);
     Tcl_SetObjResult(interp,
 	Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
+    /* Make the widget's context current. */
+    printf("ObjCmd: making current\n");
+    Togl_MakeCurrent(toglPtr);
+    printf("current context is %p\n", glXGetCurrentContext());
     return TCL_OK;
 
   error:
@@ -674,16 +678,14 @@ ToglDisplay(
 	return;
     }
     Togl_Update(toglPtr);
+    Togl_MakeCurrent(toglPtr);
     if (toglPtr->displayProc) {
-        Togl_MakeCurrent(toglPtr);
         Togl_CallCallback(toglPtr, toglPtr->displayProc);
     }
-
 #if 0
-    /* Very simple test */
+    /* Very simple tests */
     static int toggle = 0;
     printf("Running test\n");
-    Togl_MakeCurrent(toglPtr);
     if (toggle) {
 	glClearColor(0, 0, 1, 1);
     } else {

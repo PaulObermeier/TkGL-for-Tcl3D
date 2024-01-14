@@ -718,18 +718,16 @@ Togl_MakeCurrent(
     }
     GLXDrawable drawable;
 
-    if (!toglPtr)
-	drawable = None;
-    else if (toglPtr->pBufferFlag)
+    if (!toglPtr) {
+	drawable = None;	
+    } else if (toglPtr->pBufferFlag) {
 	drawable = toglPtr->pbuf;
-    else if (toglPtr->tkwin)
+    } else if (toglPtr->tkwin) {
 	drawable = Tk_WindowId(toglPtr->tkwin);
-    else
+    } else {
 	drawable = None;
-    if (drawable == None) {
     }
-    (void) glXMakeCurrent(display, drawable,
-	     drawable ? toglPtr->context : NULL);
+    (void) glXMakeCurrent(display, drawable, toglPtr->context);
 }
 
 
@@ -780,7 +778,6 @@ const char* Togl_GetExtensions(
 {
     int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
     return glXQueryExtensionsString(toglPtr->display, scrnum);
-
 }
 
 void Togl_FreeResources(

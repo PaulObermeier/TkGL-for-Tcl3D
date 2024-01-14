@@ -6,9 +6,9 @@
 #endif
 #include "tk.h"
 
-/* For compatibility with Tcl 8.6 */ 
-#ifndef TCL_INDEX_NONE
+#if TCL_MAJOR_VERSION == 8
 #define TCL_INDEX_NONE (-1)
+typedef int Tcl_Size;
 #define Tk_MakeWindow(tkwin, parent) TkpMakeWindow((TkWindow *)tkwin, parent)
 #endif
 #include "toglPlatform.h"
