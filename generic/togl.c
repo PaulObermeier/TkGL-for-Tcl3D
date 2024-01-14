@@ -158,7 +158,6 @@ ToglObjCmd(
     /* Make the widget's context current. */
     printf("ObjCmd: making current\n");
     Togl_MakeCurrent(toglPtr);
-    printf("current context is %p\n", glXGetCurrentContext());
     return TCL_OK;
 
   error:
