@@ -936,35 +936,26 @@ void
 Togl_FreeResources(
     Togl *toglPtr)
 {
-    printf("FreeResources\n");
     wglMakeCurrent(NULL, NULL);
-    if (toglPtr->extensions) {
-	ckfree((void *)toglPtr->extensions);
-	toglPtr->extensions = NULL;
-    }
     if (toglPtr->deviceContext) {
         ReleaseDC(toglPtr->child, toglPtr->deviceContext);
 	toglPtr->deviceContext = NULL;
+	if (toglPtr->pBufferFlag) {
+	    releasePbufferDC(toglPtr->pbuf, toglPtr->deviceContext);
+	}
     }
     if (toglPtr->context) {
 	if (FindToglWithSameContext(toglPtr) == NULL) {
 	    wglDeleteContext(toglPtr->context);
 	    toglPtr->context = NULL;
-	    free(togl->visInfo);
-	}
-	if (toglPtr->deviceContext) {
-	    if (toglPtr->PbufferFlag) {
-		releasePbufferDC(toglPtr->pbuf, toglPTr->deviceContext);
-	    } else {
-		HWND hwnd = Tk_GetHWND(Tk_WindowId(tkwin));
-		ReleaseDC(hwnd, toglPtr->deviceContext);
+	    if (toglPtr->visInfo) {
+		free(toglPtr->visInfo);
+		toglPtr->visInfo = NULL;
 	    }
-	    toglPtr->deviceContext = NULL;
 	}
     }
     if (toglPtr->child) {
 	DestroyWindow(toglPtr->child);
-	toglPtr->child = NULL;
     }
 }
 
