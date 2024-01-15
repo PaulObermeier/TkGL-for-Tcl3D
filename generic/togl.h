@@ -104,9 +104,9 @@ typedef struct Togl {
 #if defined(TOGL_WGL)
     HGLRC   context;            /* OpenGL rendering context */
     HDC     deviceContext;      /* Device context */
-    int     ciColormapSize;     /* (Maximum) size of indexed colormap */
-    HWND    child;              /* A child window - the rendring surface. */
+    HWND    child;              /* rendering surface for the context */
     HPBUFFERARB pbuf;
+    int     ciColormapSize;     /* (Maximum) size of indexed colormap */
     int     pBufferLost;
     int     pixelFormat;
     const char *extensions;
@@ -114,15 +114,16 @@ typedef struct Togl {
     unsigned int glminor;
 #elif defined(TOGL_X11)
     GLXContext context;         /* OpenGL context for normal planes */
-  GLXContext overlayContext;    /* OpenGL context for overlay planes */
-    GLXFBConfig fbcfg;          /* cached FBConfig */
-    Tcl_WideInt pixelFormat;
+    GLXContext overlayContext;  /* OpenGL context for overlay planes */
+    unsigned long pixelFormat;  /* visualID */
     GLXPbuffer pbuf;
+    Window surface;             /* rendering surface for the context */
+    GLXFBConfig fbcfg;          /* cached FBConfig */
 #elif defined(TOGL_NSOPENGL)
     NSOpenGLContext *context;
     NSOpenGLPixelFormat *pixelFormat;
     NSOpenGLPixelBuffer *pbuf;
-    NSView *nsview;
+    NSView *nsview;             /* rendering surface for the context */
     const char *extensions;
 #endif
 } Togl;
@@ -189,11 +190,11 @@ int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
  * Togl_CreateGLContext
  *
  * Creates an OpenGL rendering context for the widget.  It is called when the
- * widget is created, before it is mapped. For Windows and macOS, creating a
- * rendering context also requires creating the rendering surface, which is
- * an NSView on macOS and a child window on Windows.  These fill the rectangle
- * in the toplevel window occupied by the Togl widget.  GLX handles creation
- * of the rendering surface automatically.
+ * widget is created, before it is mapped. Creating a rendering context also
+ * requires creating the rendering surface.  The surface is an NSView on
+ * macOS, a child window on Windows and an X Window (i.e. an X widget) on
+ * systems using the X window manager.  In each case the surface fills the
+ * rectangle in the toplevel window which is occupied by the Togl widget.
  */
 
 int Togl_CreateGLContext(Togl *toglPtr);

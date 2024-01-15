@@ -312,15 +312,14 @@ togl_describePixelFormat(Togl *toglPtr)
  * Creates an OpenGL rendering context for the widget.  It is called when the
  * widget is created, before it is mapped. For Windows and macOS, creating a
  * rendering context also requires creating the rendering surface, which is
- * an NSView on macOS and a child window on Windows.  These fill the rectangle
- * in the toplevel window occupied by the Togl widget.  GLX handles creation
- * of the rendering surface automatically.
+ * a child window on Windows.  The child occupies  the rectangle
+ * in the toplevel window belonging to the Togl widget.
  *
  * On Windows it is necessary to create a dummy rendering context, associate
  * with a hidden window, in order to query the OpenGL server to find out what
  * pixel formats are available and to obtain pointers to functions needed to
- * create a rendering context which are part of the graphics card driver
- * rather than being provided by the openGL library.
+ * create a rendering context.  These functions are provided of the graphics
+ * card driver rather than by the openGL library.
  *  
  * The OpenGL documentation acknowledges that this is weird, but proclaims
  * that it is just how WGL works.  So there.
@@ -614,12 +613,12 @@ Togl_CreateGLContext(
 /*
  * Togl_MakeWindow
  *
- * This is a callback function which is called by Tk_MakeWindowExist
- * when the togl widget is mapped.  It sets up the widget record and
- * does other Tk-related initialization.  This function is not allowed
- * to fail.  I must return a valid X window identifier.  If something
- * goes wrong, it sets the badWindow flag in the widget record,
- * which is passed as the instanceData.
+ * This is a callback function registered to be called by Tk_MakeWindowExist
+ * when the togl widget is mapped. It sets up the widget record and does
+ * other Tk-related initialization.  This function is not allowed to fail.  It
+ * must return a valid X window identifier.  If something goes wrong, it sets
+ * the badWindow flag in the widget record, which is passed as the
+ * instanceData.
  */
 
 Window
@@ -939,13 +938,29 @@ Togl_FreeResources(
 {
     printf("FreeResources\n");
     wglMakeCurrent(NULL, NULL);
+    if (toglPtr->extensions) {
+	ckfree((void *)toglPtr->extensions);
+	toglPtr->extensions = NULL;
+    }
     if (toglPtr->deviceContext) {
         ReleaseDC(toglPtr->child, toglPtr->deviceContext);
 	toglPtr->deviceContext = NULL;
     }
     if (toglPtr->context) {
-	wglDeleteContext(toglPtr->context);
-	toglPtr->context = NULL;
+	if (FindToglWithSameContext(toglPtr) == NULL) {
+	    wglDeleteContext(toglPtr->context);
+	    toglPtr->context = NULL;
+	    free(togl->visInfo);
+	}
+	if (toglPtr->deviceContext) {
+	    if (toglPtr->PbufferFlag) {
+		releasePbufferDC(toglPtr->pbuf, toglPTr->deviceContext);
+	    } else {
+		HWND hwnd = Tk_GetHWND(Tk_WindowId(tkwin));
+		ReleaseDC(hwnd, toglPtr->deviceContext);
+	    }
+	    toglPtr->deviceContext = NULL;
+	}
     }
     if (toglPtr->child) {
 	DestroyWindow(toglPtr->child);

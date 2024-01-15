@@ -348,7 +348,10 @@ ReconfigureCB(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags,
  *  Togl_CreateGLContext
  *
  *  Creates an NSOpenGLContext and assigns it to toglPtr->context.
- *  The pixelFormat index is saved ins ToglPtr->pixelFormat.
+ *  The pixelFormat index is saved ins ToglPtr->pixelFormat.  Also
+ *  creates and NSView to serve as the rendering surface.  The NSView
+ *  is assigned as a subview and occupies the rectangle in the content
+ *  view which is assigned as to the Togl widget.
  *
  *  Returns a standard Tcl result.
  */
@@ -753,12 +756,34 @@ Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask)
 void Togl_FreeResources(
     Togl *toglPtr)
 {
+    [NSOpenGLContext clearCurrentContext];
     if (toglPtr->extensions) {
 	ckfree((void *)toglPtr->extensions);
 	toglPtr->extensions = NULL;
     }
-    [toglPtr->nsview removeFromSuperview];
-    toglPtr->nsview = nil;
+    if (toglPtr->context) {
+	if (FindToglWithSameContext(toglPtr) == NULL) {
+	    [toglPtr->context release];
+	    toglPtr->context = nil;
+	}
+	[toglPtr->nsview removeFromSuperview];
+	[toglPtr->nsview release];
+	toglPtr->nsview = nil;
+	CGDisplayRemoveReconfigurationCallback(ReconfigureCB, toglPtr);
+	free(toglPtr->visInfo);
+    }
+    if (toglPtr->PbufferFlag && toglPtr->pbuf) {
+	togl_destroyPbuffer(toglPtr);
+	toglPtr->pbuf = 0;
+    }
+    toglPtr->context = NULL;
+    toglPtr->visInfo = NULL;
+}
+
+
+
+
+    
 }
 /*
  * Local Variables:

@@ -385,79 +385,29 @@ togl_describePixelFormat(Togl *toglPtr)
     return True;
 }
 
+static Window CreateRenderingSurface(Togl *toglPtr);
+
 /*
  * Togl_CreateGLContext
  *
- * Creates an OpenGL rendering context for the widget.  It is called when the
- * widget is created, before it is mapped. For Windows and macOS, creating a
- * rendering context also requires creating the rendering surface, which is
- * an NSView on macOS and a child window on Windows.  These fill the rectangle
- * in the toplevel window occupied by the Togl widget.  GLX handles creation
- * of the rendering surface automatically.
- */
-
-int
-Togl_CreateGLContext(
-    Togl *toglPtr)
-{
-    GLXContext context = NULL;
-    GLXContext shareCtx = NULL;
-    /* If this is false, GLX reports GLXBadFBConfig. */
-    Bool direct = true;
-
-    if (toglPtr->fbcfg == NULL) {
-	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
-	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
-    }
-    switch(toglPtr->profile) {
-    case PROFILE_LEGACY:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_2_1);
-	break;
-    case PROFILE_3_2:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_3_2);
-	break;
-    case PROFILE_4_1:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
-	    shareCtx, direct, attributes_4_1);
-	break;
-    default:
-	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
-	    shareCtx, direct);
-	break;
-    }
-    if (context == NULL) {
-	Tcl_SetResult(toglPtr->interp,
-            "Failed to create GL rendering context", TCL_STATIC);
-	return TCL_ERROR;
-    }
-    toglPtr->context = context;
-    return TCL_OK;
-}
-
-
-/*
- * Togl_MakeWindow
+ * Creates an OpenGL rendering context for the Togl widget.  This is called
+ * when the widget is created, before it is mapped. Creating a rendering
+ * context also requires creating the rendering surface.  For GLX The surface
+ * is an an X "window" (i.e. an X widget) managed by the Togl widget.  The
+ * visual id of the visualInfo, which plays the role of a pixel format, is
+ * saved in the pixelFormat field of the widget record.
  *
- * This is a callback function which is called by Tk_MakeWindowExist
- * when the togl widget is mapped.  It sets up the widget record and
- * does other Tk-related initialization.  This function is not allowed
- * to fail.  I must return a valid X window identifier.  If something
- * goes wrong, it sets the badWindow flag in the widget record,
- * which is passed as the instanceData.
+ *  Returns a standard Tcl result.
  */
 
-Window
-Togl_MakeWindow(
-    Tk_Window tkwin,
-    Window parent,
-    void* instanceData)
+static Window CreateRenderingSurface(
+     Togl   *toglPtr)
 {
-    Togl   *toglPtr = (Togl *) instanceData;
+    Tk_Window tkwin = toglPtr->tkwin;
     Display *dpy;
     Colormap cmap;
     int     scrnum;
+    Window parent = Tk_WindowId(Tk_Parent(toglPtr->tkwin)); 
     Window  window = None;
     XSetWindowAttributes swa;
     int     width, height;
@@ -490,31 +440,26 @@ Togl_MakeWindow(
         XVisualInfo template;
         int     count = 0;
 
+	// The -pixelformat option was set or we are being remapped.
         template.visualid = toglPtr->pixelFormat;
         toglPtr->visInfo = XGetVisualInfo(dpy, VisualIDMask, &template, &count);
         if (toglPtr->visInfo == NULL) {
             Tcl_SetResult(toglPtr->interp,
-                    "missing visual information", TCL_STATIC);
+                    "visual information not available", TCL_STATIC);
             goto error;
         }
         if (!togl_describePixelFormat(toglPtr)) {
             Tcl_SetResult(toglPtr->interp,
-                    "couldn't choose pixel format", TCL_STATIC);
+                    "Invalid pixel format", TCL_STATIC);
             goto error;
         }
     } else {
         toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
-        if (toglPtr->visInfo == NULL) {
+        if (toglPtr->visInfo == NULL)
             goto error;
-        }
     }
-
-    /*
-     * Create a new OpenGL rendering context.
-     */
-
     if (toglPtr->shareList) {
-        /* share display lists with existing togl widget */
+        /* share resourcess with existing togl widget */
         Togl   *shareWith = FindTogl(toglPtr, toglPtr->shareList);
         GLXContext shareCtx;
         int     error_code;
@@ -528,12 +473,6 @@ Togl_MakeWindow(
         if (shareCtx) {
             togl_SetupXErrorHandler();
         }
-	if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
-            Tcl_SetResult(toglPtr->interp,
-		 "Failed to create GL context", TCL_STATIC);
-            goto error;
-
-	}
         if (shareCtx && (error_code = togl_CheckForXError(toglPtr))) {
             char    buf[256];
 
@@ -556,13 +495,8 @@ Togl_MakeWindow(
             }
             toglPtr->context = shareWith->context;
         } else {
-            /* don't share display lists */
+            /* can't share resources */
             toglPtr->shareContext = False;
-            if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
-                Tcl_SetResult(toglPtr->interp,
-                        "failed to create GL context", TCL_STATIC);
-		goto error;
-	    }
 	}
     }
     if (toglPtr->context == NULL) {
@@ -577,7 +511,7 @@ Togl_MakeWindow(
             /* tcl result set in togl_createPbuffer */
             goto error;
         }
-        window = Tk_MakeWindow(tkwin, parent);
+        //window = Tk_MakeWindow(tkwin, parent);
         return window;
     }
 
@@ -691,12 +625,77 @@ Togl_MakeWindow(
 
   error:
     toglPtr->badWindow = True;
-    if (window == None) {
-        window = Tk_MakeWindow(tkwin, parent);
-    }
     return window;
 }
+
+int
+Togl_CreateGLContext(
+    Togl *toglPtr)
+{
+    GLXContext context = NULL;
+    GLXContext shareCtx = NULL;
+    Bool direct = true;  /* If this is false, GLX reports GLXBadFBConfig. */
+
+    if (toglPtr->fbcfg == NULL) {
+	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
+	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
+    }
+    switch(toglPtr->profile) {
+    case PROFILE_LEGACY:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_2_1);
+	break;
+    case PROFILE_3_2:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_3_2);
+	break;
+    case PROFILE_4_1:
+	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	    shareCtx, direct, attributes_4_1);
+	break;
+    default:
+	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
+	    shareCtx, direct);
+	break;
+    }
+    if (context == NULL) {
+	Tcl_SetResult(toglPtr->interp,
+            "Failed to create GL rendering context", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    toglPtr->context = context;
+    toglPtr->surface = CreateRenderingSurface(toglPtr);
+    return TCL_OK;
+}
 
+
+/*
+ * Togl_MakeWindow
+ *
+ * This is a callback function which is called by Tk_MakeWindowExist
+ * when the togl widget is mapped.  It sets up the widget record and
+ * does other Tk-related initialization.  This function is not allowed
+ * to fail.  It must return a valid X window identifier.  If something
+ * goes wrong, it sets the badWindow flag in the widget record,
+ * which is passed as the instanceData.  The actual work of creating
+ * the window has already been done in ToglCreateGLContext.
+ */
+
+Window
+Togl_MakeWindow(
+    Tk_Window tkwin,
+    Window parent,
+    void* instanceData)
+{
+    Togl *toglPtr = (Togl *) instanceData;
+    Window result = toglPtr->surface;
+    if (result == None) {
+	result = Tk_MakeWindow(tkwin, parent);
+    }
+    return result;
+}
+
+
 /*
  * Togl_MakeCurrent
  *
@@ -781,9 +780,35 @@ const char* Togl_GetExtensions(
 }
 
 void Togl_FreeResources(
-    Togl *ToglPtr)
+    Togl *toglPtr)
 {
-    // Does X11 need this?
+    (void) glXMakeCurrent(toglPtr->display, None, NULL);
+    if (toglPtr->context) {
+	if (FindToglWithSameContext(toglPtr) == NULL) {
+	    glXDestroyContext(toglPtr->display, toglPtr->context);
+	    XFree(toglPtr->visInfo);
+	}
+	if (toglPtr->pBufferFlag && toglPtr->pbuf) {
+	    glXDestroyPbuffer(toglPtr->display, toglPtr->pbuf);
+	    toglPtr->pbuf = 0;
+	}
+	toglPtr->context = NULL;
+	toglPtr->visInfo = NULL;
+    }
+#  if TOGL_USE_OVERLAY
+    if (togl->OverlayContext) {
+	Tcl_HashEntry *entryPtr;
+	TkWindow *winPtr = (TkWindow *) tkwin;
+	if (winPtr) {
+	    entryPtr = Tcl_FindHashEntry(&winPtr->dispPtr->winTable,
+					 (const char *) togl->overlayWindow);
+	    Tcl_DeleteHashEntry(entryPtr);
+	}
+	if (FindToglWithSameOverlayContext(togl) == NULL)
+	    glXDestroyContext(toglPtr->display, toglPtr->overlayContext);
+	togl->overlayContext = NULL;
+    }
+#  endif
 }
 
 void

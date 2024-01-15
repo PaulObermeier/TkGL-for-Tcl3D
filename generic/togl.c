@@ -3,7 +3,7 @@
  *
  *
  * See the file "license.terms" for information on usage and redistribution of
- * this file, and for a DISCLAIMER OF ALL WARRANTIES.
+ * this file, and for a DISCLAIMER OF ALL WlARRANTIES.
  */
 #include "togl.h"
 #include "toglOptions.h" 
@@ -118,7 +118,6 @@ ToglObjCmd(
      * Allocate and initialize the widget record.
      */
 
-    printf("ObjCmd: Allocating Togl widget record\n");
     toglPtr = (Togl *)ckalloc(sizeof(Togl));
     memset(toglPtr, 0, sizeof(Togl));
     toglPtr->tkwin = tkwin;
@@ -142,12 +141,10 @@ ToglObjCmd(
 	goto error;
     }
     /* Create a rendering context for drawing to the widget. */
-    printf("ObjCmd: Creating GL rendering context.\n");
     if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
          goto error;
     }
     /* Configure the widget to match the specified options. */
-    printf("ObjCmd: configuring\n");
     if (ToglConfigure(interp, toglPtr) != TCL_OK) {
 	goto error;
     }
@@ -156,9 +153,7 @@ ToglObjCmd(
     Tcl_SetObjResult(interp,
 	Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
     /* Make the widget's context current. */
-    printf("ObjCmd: making current\n");
     Togl_MakeCurrent(toglPtr);
-    printf("current context is %p\n", glXGetCurrentContext());
     return TCL_OK;
 
   error:
@@ -627,6 +622,8 @@ ToglObjEventProc(
  *----------------------------------------------------------------------
  */
 
+/// need to port Togl_EnterStereo and Togl_LeaveStereo
+
 static void
 ToglDeletedProc(
     void *clientData)	/* Pointer to widget record for widget. */
@@ -640,12 +637,39 @@ ToglDeletedProc(
      * because the command was deleted, and then this procedure destroys the
      * widget.
      */
+    // Togl_LeaveStereo(togl, togl->Stereo);
 
-    if (tkwin != NULL) {
-	Tk_DestroyWindow(tkwin);
+    Tk_Preserve((void *) toglPtr);
+    if (toglPtr->destroyProc) {
+        /* call user's cleanup code */
+        Togl_CallCallback(toglPtr, toglPtr->destroyProc);
     }
+    if (toglPtr->timerProc != NULL) {
+        Tcl_DeleteTimerHandler(toglPtr->timerHandler);
+        toglPtr->timerHandler = NULL;
+    }
+    if (toglPtr->updatePending) {
+        Tcl_CancelIdleCall(ToglDisplay, (void *) toglPtr);
+        toglPtr->updatePending = False;
+    }
+#ifndef NO_TK_CURSOR
+    if (toglPtr->cursor != NULL) {
+        Tk_FreeCursor(toglPtr->display, toglPtr->cursor);
+        toglPtr->cursor = NULL;
+    }
+#endif
     removeFromList(toglPtr);
     Togl_FreeResources(toglPtr);
+    if (tkwin != NULL) {
+        Tk_DeleteEventHandler(tkwin, ExposureMask | StructureNotifyMask,
+                ToglObjEventProc, (void *) toglPtr);
+	if (toglPtr->setGrid > 0) {
+	    Tk_UnsetGrid(tkwin);
+	}
+	Tk_DestroyWindow(tkwin);
+    }
+    toglPtr->tkwin = None;
+    Tk_Release((void *) toglPtr);
 }
 
 /*
@@ -685,7 +709,7 @@ ToglDisplay(
 #if 0
     /* Very simple tests */
     static int toggle = 0;
-    printf("Running test\n");
+    printf("Running simple test\n");
     if (toggle) {
 	glClearColor(0, 0, 1, 1);
     } else {
