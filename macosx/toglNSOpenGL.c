@@ -772,7 +772,7 @@ void Togl_FreeResources(
 	CGDisplayRemoveReconfigurationCallback(ReconfigureCB, toglPtr);
 	free(toglPtr->visInfo);
     }
-    if (toglPtr->PbufferFlag && toglPtr->pbuf) {
+    if (toglPtr->pBufferFlag && toglPtr->pbuf) {
 	togl_destroyPbuffer(toglPtr);
 	toglPtr->pbuf = 0;
     }
@@ -780,11 +780,6 @@ void Togl_FreeResources(
     toglPtr->visInfo = NULL;
 }
 
-
-
-
-    
-}
 /*
  * Local Variables:
  * mode: objc

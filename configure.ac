@@ -132,8 +132,8 @@ TEA_PUBLIC_TCL_HEADERS
 
 # The Tk macros above don't seem to work correctly for us.
 # Edit these if your Tk installation is somewhere else.
-TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/9.0/Headers\"])
-TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/9.0/PrivateHeaders\"])
+TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/Current/Headers\"])
+TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/Current/PrivateHeaders\"])
 
 #--------------------------------------------------------------------
 # Check whether --enable-threads or --disable-threads was given.
@@ -179,7 +179,7 @@ TEA_MAKE_LIB
 # a pkgIndex.tcl file or anything else at extension build time.
 #--------------------------------------------------------------------
 
-TEA_PROG_TCLSH
+#TEA_PROG_TCLSH
 #TEA_PROG_WISH
 
 #--------------------------------------------------------------------
