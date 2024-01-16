@@ -110,8 +110,6 @@ typedef struct Togl {
     int     pBufferLost;
     int     pixelFormat;
     const char *extensions;
-    unsigned int glmajor;       /* GL version chosen for the dummy window */
-    unsigned int glminor;
 #elif defined(TOGL_X11)
     GLXContext context;         /* OpenGL context for normal planes */
     GLXContext overlayContext;  /* OpenGL context for overlay planes */

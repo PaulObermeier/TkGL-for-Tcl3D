@@ -54,6 +54,11 @@ static const int attributes_4_1[] = {
    |PropertyChangeMask          \
    |ColormapChangeMask)
 
+/*
+ * These static function pointers are set to the address of the
+ * corresponding GLX function.  This setup avoids compiler warnings.
+ */
+
 static PFNGLXCHOOSEFBCONFIGPROC chooseFBConfig = NULL;
 static PFNGLXGETFBCONFIGATTRIBPROC getFBConfigAttrib = NULL;
 static PFNGLXGETVISUALFROMFBCONFIGPROC getVisualFromFBConfig = NULL;
@@ -216,19 +221,19 @@ togl_pixelFormat(
     glXQueryVersion(toglPtr->display, &major, &minor);
     extensions = glXQueryExtensionsString(toglPtr->display, scrnum);
 
-    if (major > 1 || (major == 1 && minor >= 4)) {
-        chooseFBConfig = glXChooseFBConfig;
-        getFBConfigAttrib = glXGetFBConfigAttrib;
-        getVisualFromFBConfig = glXGetVisualFromFBConfig;
-        createPbuffer = glXCreatePbuffer;
-        destroyPbuffer = glXDestroyPbuffer;
-        queryPbuffer = glXQueryDrawable;
-        hasPbuffer = True;
-    } else {
+    if (major == 1 && minor < 4) {
 	Tcl_SetResult(toglPtr->interp,
 	    "Togl 3.0 requires GLX 1.4 or newer.", TCL_STATIC);
 	return NULL;
     }
+    chooseFBConfig = glXChooseFBConfig;
+    getFBConfigAttrib = glXGetFBConfigAttrib;
+    getVisualFromFBConfig = glXGetVisualFromFBConfig;
+    createPbuffer = glXCreatePbuffer;
+    destroyPbuffer = glXDestroyPbuffer;
+    queryPbuffer = glXQueryDrawable;
+    hasPbuffer = True;
+
     if (hasPbuffer && !chooseFBConfig) {
       hasPbuffer = False;
     }
@@ -359,7 +364,7 @@ togl_describePixelFormat(Togl *toglPtr)
 {
     int tmp = 0;
 
-    /* fill in flags normally passed in that affect behavior */
+    /* Set flags in the widget record based on the pixel format.*/
     (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_RGBA,
                &toglPtr->rgbaFlag);
     (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_DOUBLEBUFFER,
@@ -385,8 +390,6 @@ togl_describePixelFormat(Togl *toglPtr)
     return True;
 }
 
-static Window CreateRenderingSurface(Togl *toglPtr);
-
 /*
  * Togl_CreateGLContext
  *
@@ -399,6 +402,9 @@ static Window CreateRenderingSurface(Togl *toglPtr);
  *
  *  Returns a standard Tcl result.
  */
+
+/* static helper function defined below. */
+static Window CreateRenderingSurface(Togl *toglPtr);
 
 static Window CreateRenderingSurface(
      Togl   *toglPtr)
@@ -433,7 +439,8 @@ static Window CreateRenderingSurface(
     scrnum = Tk_ScreenNumber(tkwin);
 
     /*
-     * Figure out which OpenGL context to use
+     * Use the visualid stored in the pixelformat field to choose
+     * igure out which OpenGL context to use
      */
 
     if (toglPtr->pixelFormat) {
@@ -450,7 +457,7 @@ static Window CreateRenderingSurface(
         }
         if (!togl_describePixelFormat(toglPtr)) {
             Tcl_SetResult(toglPtr->interp,
-                    "Invalid pixel format", TCL_STATIC);
+                "No consistent pixel format is available.", TCL_STATIC);
             goto error;
         }
     } else {
@@ -459,7 +466,7 @@ static Window CreateRenderingSurface(
             goto error;
     }
     if (toglPtr->shareList) {
-        /* share resourcess with existing togl widget */
+        /* We are sharing resourcess of an existing togl widget */
         Togl   *shareWith = FindTogl(toglPtr, toglPtr->shareList);
         GLXContext shareCtx;
         int     error_code;
@@ -484,18 +491,18 @@ static Window CreateRenderingSurface(
         }
     } else {
         if (toglPtr->shareContext && FindTogl(toglPtr, toglPtr->shareContext)) {
-            /* share OpenGL context with existing Togl widget */
+            /* We are using the OpenGL context of an existing Togl widget */
             Togl   *shareWith = FindTogl(toglPtr, toglPtr->shareContext);
 
             if (toglPtr->visInfo->visualid != shareWith->visInfo->visualid) {
                 Tcl_SetResult(toglPtr->interp,
-                        "unable to share OpenGL context",
+                        "Unable to share the requested OpenGL context.",
                         TCL_STATIC);
                 goto error;
             }
             toglPtr->context = shareWith->context;
         } else {
-            /* can't share resources */
+            /* We can't share the context so clear the flag. */
             toglPtr->shareContext = False;
 	}
     }
@@ -508,10 +515,9 @@ static Window CreateRenderingSurface(
         /* Don't need a colormap, nor overlay, nor be displayed */
         toglPtr->pbuf = togl_createPbuffer(toglPtr);
         if (!toglPtr->pbuf) {
-            /* tcl result set in togl_createPbuffer */
+            /* A Tcl result will have been set in togl_createPbuffer */
             goto error;
         }
-        //window = Tk_MakeWindow(tkwin, parent);
         return window;
     }
 
