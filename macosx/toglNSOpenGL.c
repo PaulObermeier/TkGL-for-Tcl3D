@@ -276,25 +276,39 @@ const char* Togl_GetExtensions(
  *
  *    Called by ToglDisplay.  On macOS this sets the size of the NSView being
  *    used as the OpenGL drawing surface.  Also, if the widget's NSView has
- *    not been assigned to its NSOpenGLContext, that will be done here.
- *    This step is not needed on other platforms, where the surface is
- *    managed by the window.
+ *    not been assigned to its NSOpenGLContext, that will be done here.  This
+ *    step is not needed on other platforms, where the surface is managed by
+ *    the window.
  */
 
 void Togl_Update(const Togl *toglPtr)
 {
-  int x = toglPtr->x, y = toglPtr->y;
-  int width = toglPtr->width, height = toglPtr->height;
-  NSRect frameRect = NSMakeRect(x, y, width, height);
   // The coordinates of the frame of an NSView are in points, but the
   // coordinates of the bounds of an NSView managed by an
   // NSOpenGLContext are in pixels.  (There are 2.0 pixels per point on
-  // a retina display.)  If we need to modify the bounds we should use
+  // a retina display.)  Coordinates can be converted with
   // [NSView convertRectToBacking:(NSRect)rect];
-  [toglPtr->nsview setFrame: frameRect];
-  if (toglPtr->context && [toglPtr->context view] != toglPtr->nsview) {
-    [toglPtr->context setView:toglPtr->nsview];
-  }
+
+    Rect widgetRect, toplevelRect;
+    NSRect newFrame;
+    TkWindow *widget = (TkWindow *) toglPtr->tkwin;
+    TkWindow *toplevel = widget->privatePtr->toplevel->winPtr;
+
+    if (toglPtr->context && [toglPtr->context view] != toglPtr->nsview) {
+	[toglPtr->context setView:toglPtr->nsview];
+    }
+
+    
+    TkMacOSXWinBounds(widget, &widgetRect);
+    TkMacOSXWinBounds(toplevel, &toplevelRect);
+
+    newFrame.origin.x = widgetRect.left - toplevelRect.left;
+    newFrame.origin.y = toplevelRect.bottom - widgetRect.bottom;
+    newFrame.size.width = widgetRect.right - widgetRect.left;
+    newFrame.size.height = widgetRect.bottom - widgetRect.top;
+
+    [toglPtr->nsview setFrame:newFrame];
+    [toglPtr->context update];  
 }
 
 /* Display reconfiguration callback. Documented as needed by Apple QA1209.
