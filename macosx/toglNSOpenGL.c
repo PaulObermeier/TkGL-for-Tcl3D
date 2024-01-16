@@ -87,7 +87,6 @@ togl_pixelFormat(Togl *togl)
                 "FullScreen mode not supported.", TCL_STATIC);
         return NULL;
     }
-    printf("togl profile is %d\n", togl-> profile);
     switch(togl->profile) {
     case PROFILE_LEGACY:
 	attribs[na++] = NSOpenGLPFAOpenGLProfile;
