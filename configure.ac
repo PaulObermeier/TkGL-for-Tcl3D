@@ -124,16 +124,16 @@ fi
 #--------------------------------------------------------------------
 
 TEA_PUBLIC_TCL_HEADERS
-#TEA_PRIVATE_TCL_HEADERS
+TEA_PRIVATE_TCL_HEADERS
 
-#TEA_PUBLIC_TK_HEADERS
-#TEA_PRIVATE_TK_HEADERS
+TEA_PUBLIC_TK_HEADERS
+TEA_PRIVATE_TK_HEADERS
 #TEA_PATH_X
 
 # The Tk macros above don't seem to work correctly for us.
 # Edit these if your Tk installation is somewhere else.
-TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/Current/Headers\"])
-TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/Current/PrivateHeaders\"])
+#TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/Current/Headers\"])
+#TEA_ADD_INCLUDES([-I\"/Library/Frameworks/Tk.framework/Versions/Current/PrivateHeaders\"])
 
 #--------------------------------------------------------------------
 # Check whether --enable-threads or --disable-threads was given.

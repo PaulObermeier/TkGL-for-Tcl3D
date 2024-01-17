@@ -5,6 +5,8 @@
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WlARRANTIES.
  */
+#include "tcl.h"
+#include "tk.h"
 #include "togl.h"
 #include "toglOptions.h" 
 #include <string.h>
@@ -639,7 +641,7 @@ ToglDeletedProc(
      */
     // Togl_LeaveStereo(togl, togl->Stereo);
 
-    Tk_Preserve((void *) toglPtr);
+    Tcl_Preserve((void *) toglPtr);
     if (toglPtr->destroyProc) {
         /* call user's cleanup code */
         Togl_CallCallback(toglPtr, toglPtr->destroyProc);
@@ -669,7 +671,7 @@ ToglDeletedProc(
 	Tk_DestroyWindow(tkwin);
     }
     toglPtr->tkwin = None;
-    Tk_Release((void *) toglPtr);
+    Tcl_Release((void *) toglPtr);
 }
 
 /*
@@ -752,11 +754,11 @@ DLLEXPORT int
 Togl_Init(
     Tcl_Interp* interp)		/* Tcl interpreter */
 {
-    if (Tcl_InitStubs(interp, "8.6", 0) == NULL) {
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
 	return TCL_ERROR;
     }
 
-    if (Tk_InitStubs(interp, "8.6", 0) == NULL) {
+    if (Tk_InitStubs(interp, TK_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
     if (Tcl_PkgProvideEx(interp, PACKAGE_NAME, PACKAGE_VERSION, NULL) != TCL_OK) {
