@@ -107,10 +107,13 @@ else
         TEA_ADD_INCLUDES([-I\"${srcdir}/macosx\"])
         # On macOS, compile Togl source files as objective C because they need
         # access to the OpenGL framework and the NSView class.
-        TEA_ADD_CFLAGS([-x objective-c])
-	TEA_ADD_LIBS([-lobjc -framework OpenGL -framework AppKit])
+        TEA_ADD_CFLAGS([-x objective-c -mmacosx-version-min=10.9])
+        TEA_ADD_CFLAGS([-arch x86_64 -arch arm64])
         # Apple has deprecated OpenGL.  We don't need to hear about it:
-        TEA_ADD_CFLAGS([-Wno-deprecated-declarations])	
+        TEA_ADD_CFLAGS([-Wno-deprecated-declarations])
+	# Really these should go in LDFLAGS but tcl.m4 is lame.
+        TEA_ADD_LIBS([-arch x86_64 -arch arm64 -mmacosx-version-min=10.9])
+        TEA_ADD_LIBS([-lobjc -framework OpenGL -framework AppKit])
     fi
 fi
 

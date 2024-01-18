@@ -670,7 +670,7 @@ ToglDeletedProc(
 	}
 	Tk_DestroyWindow(tkwin);
     }
-    toglPtr->tkwin = None;
+    toglPtr->tkwin = NULL;
     Tcl_Release((void *) toglPtr);
 }
 
