@@ -19,7 +19,7 @@ jobs:
           bash ci/macOS/build_mac_togl.sh
 
       - name: Save artifacts
-        uses: actions/upload-artifacts
+        uses: actions/upload-artifact@v3
         with:
           name: Togl_package
           path: ./Togl-3.0
