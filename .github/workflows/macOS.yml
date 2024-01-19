@@ -1,0 +1,25 @@
+name: macOS
+
+on: [push]
+
+jobs:
+  build Togl package:
+    name: Build Tcl extension for Tcl 8 and 9 on macOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-12]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+	
+      - name: Run build script
+        run: |
+	  bash ci/macOS/build_mac_togl.sh
+
+      - name: Create artifacts
+        uses: actions/upload-artifacts
+	with:
+	  name: Togl_package
+	  path: ./Togl-3.0
