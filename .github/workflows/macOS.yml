@@ -16,10 +16,7 @@ jobs:
 
       - name: Run build script
         run: |
-          pwd
-          ls
-          ls -lR
-          bash ./ci/macOS/build_mac_togl.sh
+          bash ./ci/macOS/build_mac_togl3.sh
 
       - name: Save artifacts
         uses: actions/upload-artifact@v3
