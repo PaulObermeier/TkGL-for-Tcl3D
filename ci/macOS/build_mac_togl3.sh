@@ -28,8 +28,6 @@ cd ..
 cp ci/macOS/mac_configure configure
 ./configure --with-tcl=build/tcl/Tcl.framework --with-tk=build/tk/Tk.framework
 make
-cd ..
-
 mv libtcl9Togl3.0.dylib Togl3.0
 rm -rf build
 
@@ -48,6 +46,5 @@ make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
 cd ..
 ./configure --with-tcl=build/tcl/Tcl.framework --with-tk=build/tk/Tk.framework
 make
-
 mv libTogl3.0.dylib Togl3.0
 mv pkgIndex.tcl Togl3.0
