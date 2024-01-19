@@ -16,9 +16,9 @@ jobs:
 
       - name: Run build script
         run: |
-	  pwd
-	  ls
-	  ls -lR
+          pwd
+          ls
+          ls -lR
           bash ./ci/macOS/build_mac_togl.sh
 
       - name: Save artifacts
