@@ -25,13 +25,12 @@ cd ../tk9
 echo building tk9 ...
 make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
 cd ..
-cd togl3
 cp ci/macOS/mac_configure configure
-./configure --with-tcl=../build/tcl/Tcl.framework --with-tk=../build/tk/Tk.framework
+./configure --with-tcl=build/tcl/Tcl.framework --with-tk=build/tk/Tk.framework
 make
 cd ..
 
-mv togl3/libtcl9Togl3.0.dylib Togl3.0
+mv libtcl9Togl3.0.dylib Togl3.0
 rm -rf build
 
 echo downloading tcl/tk source ...
@@ -46,11 +45,9 @@ make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
 cd ../tk8
 echo building tk8 ...
 make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
-cd ../togl3
-make clean
-./configure --with-tcl=../build/tcl/Tcl.framework --with-tk=../build/tk/Tk.framework
-make
 cd ..
+./configure --with-tcl=build/tcl/Tcl.framework --with-tk=build/tk/Tk.framework
+make
 
-mv togl3/libTogl3.0.dylib Togl3.0
-mv togl3/pkgIndex.tcl Togl3.0
+mv libTogl3.0.dylib Togl3.0
+mv pkgIndex.tcl Togl3.0
