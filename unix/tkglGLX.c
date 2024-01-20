@@ -1,22 +1,22 @@
 /*
   This file contains implementations of the following platform specific
-  functions declared in togl.h.  They comprise the platform interface.
+  functions declared in tkgl.h.  They comprise the platform interface.
 
-void Togl_Update(const Togl *toglPtr);
-Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
-void Togl_WorldChanged(void* instanceData);
-void Togl_MakeCurrent(const Togl *toglPtr);
-void Togl_SwapBuffers(const Togl *toglPtr);
-int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
-int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
-int Togl_CreateGLContext(Togl *toglPtr);
-const char* Togl_GetExtensions(Togl *ToglPtr);
-void Togl_FreeResources(Togl *ToglPtr);
+void Tkgl_Update(const Tkgl *tkglPtr);
+Window Tkgl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
+void Tkgl_WorldChanged(void* instanceData);
+void Tkgl_MakeCurrent(const Tkgl *tkglPtr);
+void Tkgl_SwapBuffers(const Tkgl *tkglPtr);
+int Tkgl_TakePhoto(Tkgl *tkglPtr, Tk_PhotoHandle photo);
+int Tkgl_CopyContext(const Tkgl *from, const Tkgl *to, unsigned mask);
+int Tkgl_CreateGLContext(Tkgl *tkglPtr);
+const char* Tkgl_GetExtensions(Tkgl *TkglPtr);
+void Tkgl_FreeResources(Tkgl *TkglPtr);
 */
 
 #include <stdbool.h>
-#include "togl.h"
-#include "toglPlatform.h"
+#include "tkgl.h"
+#include "tkglPlatform.h"
 #include "tkInt.h"  /* for TkWindow */
 
 static Colormap get_rgb_colormap(Display *dpy, int scrnum,
@@ -111,7 +111,7 @@ static Bool isBetterFB(
     return false;
 }
 
-static Tcl_ThreadDataKey togl_XError;
+static Tcl_ThreadDataKey tkgl_XError;
 struct ErrorData
 {
     int     error_code;
@@ -120,42 +120,42 @@ struct ErrorData
 typedef struct ErrorData ErrorData;
 
 static int
-togl_HandleXError(Display *dpy, XErrorEvent * event)
+tkgl_HandleXError(Display *dpy, XErrorEvent * event)
 {
-    ErrorData *data = Tcl_GetThreadData(&togl_XError, (int) sizeof (ErrorData));
+    ErrorData *data = Tcl_GetThreadData(&tkgl_XError, (int) sizeof (ErrorData));
 
     data->error_code = event->error_code;
     return 0;
 }
 
 static void
-togl_SetupXErrorHandler()
+tkgl_SetupXErrorHandler()
 {
-    ErrorData *data = Tcl_GetThreadData(&togl_XError, (int) sizeof (ErrorData));
+    ErrorData *data = Tcl_GetThreadData(&tkgl_XError, (int) sizeof (ErrorData));
 
     data->error_code = Success; /* 0 */
-    data->prevHandler = XSetErrorHandler(togl_HandleXError);
+    data->prevHandler = XSetErrorHandler(tkgl_HandleXError);
 }
 
 static int
-togl_CheckForXError(const Togl *toglPtr)
+tkgl_CheckForXError(const Tkgl *tkglPtr)
 {
-    ErrorData *data = Tcl_GetThreadData(&togl_XError, (int) sizeof (ErrorData));
+    ErrorData *data = Tcl_GetThreadData(&tkgl_XError, (int) sizeof (ErrorData));
 
-    XSync(toglPtr->display, False);
+    XSync(tkglPtr->display, False);
     (void) XSetErrorHandler(data->prevHandler);
     return data->error_code;
 }
 
 static GLXPbuffer
-togl_createPbuffer(Togl *toglPtr)
+tkgl_createPbuffer(Tkgl *tkglPtr)
 {
     int     attribs[32];
     int     na = 0;
     GLXPbuffer pbuf;
 
-    togl_SetupXErrorHandler();
-    if (toglPtr->largestPbufferFlag) {
+    tkgl_SetupXErrorHandler();
+    if (tkglPtr->largestPbufferFlag) {
         attribs[na++] = GLX_LARGEST_PBUFFER;
         attribs[na++] = True;
     }
@@ -163,37 +163,37 @@ togl_createPbuffer(Togl *toglPtr)
     attribs[na++] = True;
     if (createPbuffer) {
         attribs[na++] = GLX_PBUFFER_WIDTH;
-        attribs[na++] = toglPtr->width;
+        attribs[na++] = tkglPtr->width;
         attribs[na++] = GLX_PBUFFER_HEIGHT;
-        attribs[na++] = toglPtr->width;
+        attribs[na++] = tkglPtr->width;
         attribs[na++] = None;
-        pbuf = createPbuffer(toglPtr->display, toglPtr->fbcfg, attribs);
+        pbuf = createPbuffer(tkglPtr->display, tkglPtr->fbcfg, attribs);
     } else {
         attribs[na++] = None;
-        pbuf = createPbufferSGIX(toglPtr->display, toglPtr->fbcfg,
-		   toglPtr->width, toglPtr->height, attribs);
+        pbuf = createPbufferSGIX(tkglPtr->display, tkglPtr->fbcfg,
+		   tkglPtr->width, tkglPtr->height, attribs);
     }
-    if (togl_CheckForXError(toglPtr) || pbuf == None) {
-        Tcl_SetResult(toglPtr->interp,
+    if (tkgl_CheckForXError(tkglPtr) || pbuf == None) {
+        Tcl_SetResult(tkglPtr->interp,
                       "unable to allocate pbuffer", TCL_STATIC);
         return None;
     }
-    if (pbuf && toglPtr->largestPbufferFlag) {
+    if (pbuf && tkglPtr->largestPbufferFlag) {
         unsigned int     tmp;
 
-        queryPbuffer(toglPtr->display, pbuf, GLX_WIDTH, &tmp);
+        queryPbuffer(tkglPtr->display, pbuf, GLX_WIDTH, &tmp);
         if (tmp != 0)
-            toglPtr->width = tmp;
-        queryPbuffer(toglPtr->display, pbuf, GLX_HEIGHT, &tmp);
+            tkglPtr->width = tmp;
+        queryPbuffer(tkglPtr->display, pbuf, GLX_HEIGHT, &tmp);
         if (tmp != 0)
-            toglPtr->height = tmp;
+            tkglPtr->height = tmp;
     }
     return pbuf;
 }
 
 static XVisualInfo *
-togl_pixelFormat(
-    Togl *toglPtr,
+tkgl_pixelFormat(
+    Tkgl *tkglPtr,
     int scrnum)
 {
     int attribs[256];
@@ -207,8 +207,8 @@ togl_pixelFormat(
      * Make sure OpenGL's GLX extension is supported.
      */
 
-    if (!glXQueryExtension(toglPtr->display, &dummy, &dummy)) {
-      Tcl_SetResult(toglPtr->interp,
+    if (!glXQueryExtension(tkglPtr->display, &dummy, &dummy)) {
+      Tcl_SetResult(tkglPtr->interp,
                     "X server is missing OpenGL GLX extension",
                     TCL_STATIC);
       return NULL;
@@ -218,12 +218,12 @@ togl_pixelFormat(
     (void) XSetErrorHandler(fatal_error);
 #endif
 
-    glXQueryVersion(toglPtr->display, &major, &minor);
-    extensions = glXQueryExtensionsString(toglPtr->display, scrnum);
+    glXQueryVersion(tkglPtr->display, &major, &minor);
+    extensions = glXQueryExtensionsString(tkglPtr->display, scrnum);
 
     if (major == 1 && minor < 4) {
-	Tcl_SetResult(toglPtr->interp,
-	    "Togl 3.0 requires GLX 1.4 or newer.", TCL_STATIC);
+	Tcl_SetResult(tkglPtr->interp,
+	    "Tkgl 3.0 requires GLX 1.4 or newer.", TCL_STATIC);
 	return NULL;
     }
     chooseFBConfig = glXChooseFBConfig;
@@ -243,14 +243,14 @@ togl_pixelFormat(
       hasMultisampling = True;
     }
 
-    if (toglPtr->multisampleFlag && !hasMultisampling) {
-        Tcl_SetResult(toglPtr->interp,
+    if (tkglPtr->multisampleFlag && !hasMultisampling) {
+        Tcl_SetResult(tkglPtr->interp,
                       "multisampling not supported", TCL_STATIC);
         return NULL;
     }
 
-    if (toglPtr->pBufferFlag && !hasPbuffer) {
-        Tcl_SetResult(toglPtr->interp,
+    if (tkglPtr->pBufferFlag && !hasPbuffer) {
+        Tcl_SetResult(tkglPtr->interp,
                       "pbuffers are not supported", TCL_STATIC);
         return NULL;
     }
@@ -260,18 +260,18 @@ togl_pixelFormat(
         GLXFBConfig *cfgs;
 
         attribs[na++] = GLX_RENDER_TYPE;
-        if (toglPtr->rgbaFlag) {
+        if (tkglPtr->rgbaFlag) {
             /* RGB[A] mode */
             attribs[na++] = GLX_RGBA_BIT;
             attribs[na++] = GLX_RED_SIZE;
-            attribs[na++] = toglPtr->rgbaRed;
+            attribs[na++] = tkglPtr->rgbaRed;
             attribs[na++] = GLX_GREEN_SIZE;
-            attribs[na++] = toglPtr->rgbaGreen;
+            attribs[na++] = tkglPtr->rgbaGreen;
             attribs[na++] = GLX_BLUE_SIZE;
-            attribs[na++] = toglPtr->rgbaBlue;
-            if (toglPtr->alphaFlag) {
+            attribs[na++] = tkglPtr->rgbaBlue;
+            if (tkglPtr->alphaFlag) {
                 attribs[na++] = GLX_ALPHA_SIZE;
-                attribs[na++] = toglPtr->alphaSize;
+                attribs[na++] = tkglPtr->alphaSize;
             }
         } else {
             /* Color index mode */
@@ -279,53 +279,53 @@ togl_pixelFormat(
             attribs[na++] = GLX_BUFFER_SIZE;
             attribs[na++] = 1;
         }
-        if (toglPtr->depthFlag) {
+        if (tkglPtr->depthFlag) {
             attribs[na++] = GLX_DEPTH_SIZE;
-            attribs[na++] = toglPtr->depthSize;
+            attribs[na++] = tkglPtr->depthSize;
         }
-        if (toglPtr->doubleFlag) {
+        if (tkglPtr->doubleFlag) {
             attribs[na++] = GLX_DOUBLEBUFFER;
             attribs[na++] = True;
         }
-        if (toglPtr->stencilFlag) {
+        if (tkglPtr->stencilFlag) {
             attribs[na++] = GLX_STENCIL_SIZE;
-            attribs[na++] = toglPtr->stencilSize;
+            attribs[na++] = tkglPtr->stencilSize;
         }
-        if (toglPtr->accumFlag) {
+        if (tkglPtr->accumFlag) {
             attribs[na++] = GLX_ACCUM_RED_SIZE;
-            attribs[na++] = toglPtr->accumRed;
+            attribs[na++] = tkglPtr->accumRed;
             attribs[na++] = GLX_ACCUM_GREEN_SIZE;
-            attribs[na++] = toglPtr->accumGreen;
+            attribs[na++] = tkglPtr->accumGreen;
             attribs[na++] = GLX_ACCUM_BLUE_SIZE;
-            attribs[na++] = toglPtr->accumBlue;
-            if (toglPtr->alphaFlag) {
+            attribs[na++] = tkglPtr->accumBlue;
+            if (tkglPtr->alphaFlag) {
                 attribs[na++] = GLX_ACCUM_ALPHA_SIZE;
-                attribs[na++] = toglPtr->accumAlpha;
+                attribs[na++] = tkglPtr->accumAlpha;
             }
         }
-        if (toglPtr->stereo == TOGL_STEREO_NATIVE) {
+        if (tkglPtr->stereo == TKGL_STEREO_NATIVE) {
             attribs[na++] = GLX_STEREO;
             attribs[na++] = True;
         }
-        if (toglPtr->multisampleFlag) {
+        if (tkglPtr->multisampleFlag) {
             attribs[na++] = GLX_SAMPLE_BUFFERS_ARB;
             attribs[na++] = 1;
             attribs[na++] = GLX_SAMPLES_ARB;
             attribs[na++] = 2;
         }
-        if (toglPtr->pBufferFlag) {
+        if (tkglPtr->pBufferFlag) {
             attribs[na++] = GLX_DRAWABLE_TYPE;
             attribs[na++] = GLX_WINDOW_BIT | GLX_PBUFFER_BIT;
         }
-        if (toglPtr->auxNumber != 0) {
+        if (tkglPtr->auxNumber != 0) {
             attribs[na++] = GLX_AUX_BUFFERS;
-            attribs[na++] = toglPtr->auxNumber;
+            attribs[na++] = tkglPtr->auxNumber;
         }
         attribs[na++] = None;
 
-        cfgs = chooseFBConfig(toglPtr->display, scrnum, attribs, &count);
+        cfgs = chooseFBConfig(tkglPtr->display, scrnum, attribs, &count);
         if (cfgs == NULL || count == 0) {
-            Tcl_SetResult(toglPtr->interp, "Couldn't choose pixel format.",
+            Tcl_SetResult(tkglPtr->interp, "Couldn't choose pixel format.",
 			  TCL_STATIC);
             return NULL;
         }
@@ -335,9 +335,9 @@ togl_pixelFormat(
          */
 
 	FBInfo bestFB, nextFB;
-	getFBInfo(toglPtr->display, cfgs[0], &bestFB);
+	getFBInfo(tkglPtr->display, cfgs[0], &bestFB);
 	for (i=1; i < count; i++) {
-	    getFBInfo(toglPtr->display, cfgs[i], &nextFB);
+	    getFBInfo(tkglPtr->display, cfgs[i], &nextFB);
 	    if (isBetterFB(&nextFB, &bestFB)) {
 		bestFB = nextFB;
 	    }
@@ -348,11 +348,11 @@ togl_pixelFormat(
 	printf(" depth: %d ", bestFB.depth);
 	printf(" samples: %d\n", bestFB.samples);
 #endif
-	toglPtr->fbcfg = bestFB.fbcfg;
-	visinfo = getVisualFromFBConfig(toglPtr->display, bestFB.fbcfg);
+	tkglPtr->fbcfg = bestFB.fbcfg;
+	visinfo = getVisualFromFBConfig(tkglPtr->display, bestFB.fbcfg);
     }
     if (visinfo == NULL) {
-        Tcl_SetResult(toglPtr->interp,
+        Tcl_SetResult(tkglPtr->interp,
                       "couldn't choose pixel format", TCL_STATIC);
         return NULL;
     }
@@ -360,43 +360,43 @@ togl_pixelFormat(
 }
 
 static int
-togl_describePixelFormat(Togl *toglPtr)
+tkgl_describePixelFormat(Tkgl *tkglPtr)
 {
     int tmp = 0;
 
     /* Set flags in the widget record based on the pixel format.*/
-    (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_RGBA,
-               &toglPtr->rgbaFlag);
-    (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_DOUBLEBUFFER,
-               &toglPtr->doubleFlag);
-    (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_DEPTH_SIZE,
+    (void) glXGetConfig(tkglPtr->display, tkglPtr->visInfo, GLX_RGBA,
+               &tkglPtr->rgbaFlag);
+    (void) glXGetConfig(tkglPtr->display, tkglPtr->visInfo, GLX_DOUBLEBUFFER,
+               &tkglPtr->doubleFlag);
+    (void) glXGetConfig(tkglPtr->display, tkglPtr->visInfo, GLX_DEPTH_SIZE,
 	       &tmp);
-    toglPtr->depthFlag = (tmp != 0);
-    (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_ACCUM_RED_SIZE,
+    tkglPtr->depthFlag = (tmp != 0);
+    (void) glXGetConfig(tkglPtr->display, tkglPtr->visInfo, GLX_ACCUM_RED_SIZE,
 	       &tmp);
-    toglPtr->accumFlag = (tmp != 0);
-    (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_ALPHA_SIZE,
+    tkglPtr->accumFlag = (tmp != 0);
+    (void) glXGetConfig(tkglPtr->display, tkglPtr->visInfo, GLX_ALPHA_SIZE,
 	       &tmp);
-    toglPtr->alphaFlag = (tmp != 0);
-    (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_STENCIL_SIZE,
+    tkglPtr->alphaFlag = (tmp != 0);
+    (void) glXGetConfig(tkglPtr->display, tkglPtr->visInfo, GLX_STENCIL_SIZE,
 	       &tmp);
-    toglPtr->stencilFlag = (tmp != 0);
-    (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_STEREO, &tmp);
-    toglPtr->stereo = tmp ? TOGL_STEREO_NATIVE : TOGL_STEREO_NONE;
+    tkglPtr->stencilFlag = (tmp != 0);
+    (void) glXGetConfig(tkglPtr->display, tkglPtr->visInfo, GLX_STEREO, &tmp);
+    tkglPtr->stereo = tmp ? TKGL_STEREO_NATIVE : TKGL_STEREO_NONE;
     if (hasMultisampling) {
-        (void) glXGetConfig(toglPtr->display, toglPtr->visInfo, GLX_SAMPLES, &tmp);
-        toglPtr->multisampleFlag = (tmp != 0);
+        (void) glXGetConfig(tkglPtr->display, tkglPtr->visInfo, GLX_SAMPLES, &tmp);
+        tkglPtr->multisampleFlag = (tmp != 0);
     }
     return True;
 }
 
 /*
- * Togl_CreateGLContext
+ * Tkgl_CreateGLContext
  *
- * Creates an OpenGL rendering context for the Togl widget.  This is called
+ * Creates an OpenGL rendering context for the Tkgl widget.  This is called
  * when the widget is created, before it is mapped. Creating a rendering
  * context also requires creating the rendering surface.  For GLX The surface
- * is an an X "window" (i.e. an X widget) managed by the Togl widget.  The
+ * is an an X "window" (i.e. an X widget) managed by the Tkgl widget.  The
  * visual id of the visualInfo, which plays the role of a pixel format, is
  * saved in the pixelFormat field of the widget record.
  *
@@ -404,36 +404,36 @@ togl_describePixelFormat(Togl *toglPtr)
  */
 
 /* static helper function defined below. */
-static Window CreateRenderingSurface(Togl *toglPtr);
+static Window CreateRenderingSurface(Tkgl *tkglPtr);
 
 static Window CreateRenderingSurface(
-     Togl   *toglPtr)
+     Tkgl   *tkglPtr)
 {
-    Tk_Window tkwin = toglPtr->tkwin;
+    Tk_Window tkwin = tkglPtr->tkwin;
     Display *dpy;
     Colormap cmap;
     int     scrnum;
-    Window parent = Tk_WindowId(Tk_Parent(toglPtr->tkwin)); 
+    Window parent = Tk_WindowId(Tk_Parent(tkglPtr->tkwin)); 
     Window  window = None;
     XSetWindowAttributes swa;
     int     width, height;
 
-    if (toglPtr->badWindow) {
+    if (tkglPtr->badWindow) {
         return Tk_MakeWindow(tkwin, parent);
     }
 
     /* for color index mode photos */
-    if (toglPtr->redMap) {
-        free(toglPtr->redMap);
+    if (tkglPtr->redMap) {
+        free(tkglPtr->redMap);
     }
-    if (toglPtr->greenMap) {
-        free(toglPtr->greenMap);
+    if (tkglPtr->greenMap) {
+        free(tkglPtr->greenMap);
     }
-    if (toglPtr->blueMap) {
-        free(toglPtr->blueMap);
+    if (tkglPtr->blueMap) {
+        free(tkglPtr->blueMap);
     }
-    toglPtr->redMap = toglPtr->greenMap = toglPtr->blueMap = NULL;
-    toglPtr->mapSize = 0;
+    tkglPtr->redMap = tkglPtr->greenMap = tkglPtr->blueMap = NULL;
+    tkglPtr->mapSize = 0;
 
     dpy = Tk_Display(tkwin);
     scrnum = Tk_ScreenNumber(tkwin);
@@ -443,79 +443,79 @@ static Window CreateRenderingSurface(
      * igure out which OpenGL context to use
      */
 
-    if (toglPtr->pixelFormat) {
+    if (tkglPtr->pixelFormat) {
         XVisualInfo template;
         int     count = 0;
 
 	// The -pixelformat option was set or we are being remapped.
-        template.visualid = toglPtr->pixelFormat;
-        toglPtr->visInfo = XGetVisualInfo(dpy, VisualIDMask, &template, &count);
-        if (toglPtr->visInfo == NULL) {
-            Tcl_SetResult(toglPtr->interp,
+        template.visualid = tkglPtr->pixelFormat;
+        tkglPtr->visInfo = XGetVisualInfo(dpy, VisualIDMask, &template, &count);
+        if (tkglPtr->visInfo == NULL) {
+            Tcl_SetResult(tkglPtr->interp,
                     "visual information not available", TCL_STATIC);
             goto error;
         }
-        if (!togl_describePixelFormat(toglPtr)) {
-            Tcl_SetResult(toglPtr->interp,
+        if (!tkgl_describePixelFormat(tkglPtr)) {
+            Tcl_SetResult(tkglPtr->interp,
                 "No consistent pixel format is available.", TCL_STATIC);
             goto error;
         }
     } else {
-        toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
-        if (toglPtr->visInfo == NULL)
+        tkglPtr->visInfo = tkgl_pixelFormat(tkglPtr, scrnum);
+        if (tkglPtr->visInfo == NULL)
             goto error;
     }
-    if (toglPtr->shareList) {
-        /* We are sharing resourcess of an existing togl widget */
-        Togl   *shareWith = FindTogl(toglPtr, toglPtr->shareList);
+    if (tkglPtr->shareList) {
+        /* We are sharing resourcess of an existing tkgl widget */
+        Tkgl   *shareWith = FindTkgl(tkglPtr, tkglPtr->shareList);
         GLXContext shareCtx;
         int     error_code;
 
         if (shareWith) {
             shareCtx = shareWith->context;
-            toglPtr->contextTag = shareWith->contextTag;
+            tkglPtr->contextTag = shareWith->contextTag;
         } else {
             shareCtx = None;
         }
         if (shareCtx) {
-            togl_SetupXErrorHandler();
+            tkgl_SetupXErrorHandler();
         }
-        if (shareCtx && (error_code = togl_CheckForXError(toglPtr))) {
+        if (shareCtx && (error_code = tkgl_CheckForXError(tkglPtr))) {
             char    buf[256];
 
-            toglPtr->context = NULL;
+            tkglPtr->context = NULL;
             XGetErrorText(dpy, error_code, buf, sizeof buf);
-            Tcl_AppendResult(toglPtr->interp,
+            Tcl_AppendResult(tkglPtr->interp,
                     "unable to share display lists: ", buf, NULL);
             goto error;
         }
     } else {
-        if (toglPtr->shareContext && FindTogl(toglPtr, toglPtr->shareContext)) {
-            /* We are using the OpenGL context of an existing Togl widget */
-            Togl   *shareWith = FindTogl(toglPtr, toglPtr->shareContext);
+        if (tkglPtr->shareContext && FindTkgl(tkglPtr, tkglPtr->shareContext)) {
+            /* We are using the OpenGL context of an existing Tkgl widget */
+            Tkgl   *shareWith = FindTkgl(tkglPtr, tkglPtr->shareContext);
 
-            if (toglPtr->visInfo->visualid != shareWith->visInfo->visualid) {
-                Tcl_SetResult(toglPtr->interp,
+            if (tkglPtr->visInfo->visualid != shareWith->visInfo->visualid) {
+                Tcl_SetResult(tkglPtr->interp,
                         "Unable to share the requested OpenGL context.",
                         TCL_STATIC);
                 goto error;
             }
-            toglPtr->context = shareWith->context;
+            tkglPtr->context = shareWith->context;
         } else {
             /* We can't share the context so clear the flag. */
-            toglPtr->shareContext = False;
+            tkglPtr->shareContext = False;
 	}
     }
-    if (toglPtr->context == NULL) {
-        Tcl_SetResult(toglPtr->interp,
+    if (tkglPtr->context == NULL) {
+        Tcl_SetResult(tkglPtr->interp,
                 "could not create rendering context", TCL_STATIC);
         goto error;
     }
-    if (toglPtr->pBufferFlag) {
+    if (tkglPtr->pBufferFlag) {
         /* Don't need a colormap, nor overlay, nor be displayed */
-        toglPtr->pbuf = togl_createPbuffer(toglPtr);
-        if (!toglPtr->pbuf) {
-            /* A Tcl result will have been set in togl_createPbuffer */
+        tkglPtr->pbuf = tkgl_createPbuffer(tkglPtr);
+        if (!tkglPtr->pbuf) {
+            /* A Tcl result will have been set in tkgl_createPbuffer */
             goto error;
         }
         return window;
@@ -524,177 +524,177 @@ static Window CreateRenderingSurface(
     /*
      * find a colormap
      */
-    if (toglPtr->rgbaFlag) {
+    if (tkglPtr->rgbaFlag) {
         /* Colormap for RGB mode */
-        cmap = get_rgb_colormap(dpy, scrnum, toglPtr->visInfo, tkwin);
+        cmap = get_rgb_colormap(dpy, scrnum, tkglPtr->visInfo, tkwin);
     } else {
         /* Colormap for CI mode */
-        if (toglPtr->privateCmapFlag) {
+        if (tkglPtr->privateCmapFlag) {
             /* need read/write colormap so user can store own color entries */
             cmap = XCreateColormap(dpy,
-		       XRootWindow(dpy, toglPtr->visInfo->screen),
-                       toglPtr->visInfo->visual, AllocAll);
+		       XRootWindow(dpy, tkglPtr->visInfo->screen),
+                       tkglPtr->visInfo->visual, AllocAll);
         } else {
-            if (toglPtr->visInfo->visual == DefaultVisual(dpy, scrnum)) {
+            if (tkglPtr->visInfo->visual == DefaultVisual(dpy, scrnum)) {
                 /* share default/root colormap */
                 cmap = Tk_Colormap(tkwin);
             } else {
                 /* make a new read-only colormap */
                 cmap = XCreateColormap(dpy,
-                        XRootWindow(dpy, toglPtr->visInfo->screen),
-                        toglPtr->visInfo->visual, AllocNone);
+                        XRootWindow(dpy, tkglPtr->visInfo->screen),
+                        tkglPtr->visInfo->visual, AllocNone);
             }
         }
     }
 
     /* Make sure Tk knows to switch to the new colormap when the cursor is over
      * this window when running in color index mode. */
-    (void) Tk_SetWindowVisual(tkwin, toglPtr->visInfo->visual,
-            toglPtr->visInfo->depth, cmap);
+    (void) Tk_SetWindowVisual(tkwin, tkglPtr->visInfo->visual,
+            tkglPtr->visInfo->depth, cmap);
     swa.background_pixmap = None;
     swa.border_pixel = 0;
     swa.colormap = cmap;
     swa.event_mask = ALL_EVENTS_MASK;
-    if (toglPtr->pBufferFlag) {
+    if (tkglPtr->pBufferFlag) {
         width = height = 1;
     } else {
-        width = toglPtr->width;
-        height = toglPtr->height;
+        width = tkglPtr->width;
+        height = tkglPtr->height;
     }
     window = XCreateWindow(dpy, parent,
             0, 0, width, height,
-            0, toglPtr->visInfo->depth, InputOutput, toglPtr->visInfo->visual,
+            0, tkglPtr->visInfo->depth, InputOutput, tkglPtr->visInfo->visual,
             CWBackPixmap | CWBorderPixel | CWColormap | CWEventMask, &swa);
     /* Make sure window manager installs our colormap */
     (void) XSetWMColormapWindows(dpy, window, &window, 1);
 
-    if (!toglPtr->doubleFlag) {
+    if (!tkglPtr->doubleFlag) {
         int     dbl_flag;
 
         /* See if we requested single buffering but had to accept a double
          * buffered visual.  If so, set the GL draw buffer to be the front
          * buffer to simulate single buffering. */
-        if (glXGetConfig(dpy, toglPtr->visInfo, GLX_DOUBLEBUFFER, &dbl_flag)) {
+        if (glXGetConfig(dpy, tkglPtr->visInfo, GLX_DOUBLEBUFFER, &dbl_flag)) {
             if (dbl_flag) {
-                glXMakeCurrent(dpy, window, toglPtr->context);
+                glXMakeCurrent(dpy, window, tkglPtr->context);
                 glDrawBuffer(GL_FRONT);
                 glReadBuffer(GL_FRONT);
             }
         }
     }
-#if TOGL_USE_OVERLAY
-    if (toglPtr->overlayFlag) {
-        if (SetupOverlay(togl) == TCL_ERROR) {
+#if TKGL_USE_OVERLAY
+    if (tkglPtr->overlayFlag) {
+        if (SetupOverlay(tkgl) == TCL_ERROR) {
             fprintf(stderr, "Warning: couldn't setup overlay.\n");
-            toglPtr->overlayFlag = False;
+            tkglPtr->overlayFlag = False;
         }
     }
 #endif
-    if (!toglPtr->rgbaFlag) {
+    if (!tkglPtr->rgbaFlag) {
         int     index_size;
         GLint   index_bits;
 
         glGetIntegerv(GL_INDEX_BITS, &index_bits);
         index_size = 1 << index_bits;
-        if (toglPtr->mapSize != index_size) {
-            if (toglPtr->redMap)
-                free(toglPtr->redMap);
-            if (toglPtr->greenMap)
-                free(toglPtr->greenMap);
-            if (toglPtr->blueMap)
-                free(toglPtr->blueMap);
-            toglPtr->mapSize = index_size;
-            toglPtr->redMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
-            toglPtr->greenMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
-            toglPtr->blueMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
+        if (tkglPtr->mapSize != index_size) {
+            if (tkglPtr->redMap)
+                free(tkglPtr->redMap);
+            if (tkglPtr->greenMap)
+                free(tkglPtr->greenMap);
+            if (tkglPtr->blueMap)
+                free(tkglPtr->blueMap);
+            tkglPtr->mapSize = index_size;
+            tkglPtr->redMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
+            tkglPtr->greenMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
+            tkglPtr->blueMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
         }
     }
 #ifdef HAVE_AUTOSTEREO
-    if (toglPtr->stereo == TOGL_STEREO_NATIVE) {
-        if (!toglPtr->as_initialized) {
+    if (tkglPtr->stereo == TKGL_STEREO_NATIVE) {
+        if (!tkglPtr->as_initialized) {
             const char *autostereod;
 
-            toglPtr->as_initialized = True;
+            tkglPtr->as_initialized = True;
             if ((autostereod = getenv("AUTOSTEREOD")) == NULL)
                 autostereod = AUTOSTEREOD;
             if (autostereod && *autostereod) {
-                if (ASInitialize(toglPtr->display, autostereod) == Success) {
-                    toglPtr->ash = ASCreatedStereoWindow(dpy);
+                if (ASInitialize(tkglPtr->display, autostereod) == Success) {
+                    tkglPtr->ash = ASCreatedStereoWindow(dpy);
                 }
             }
         } else {
-            toglPtr->ash = ASCreatedStereoWindow(dpy);
+            tkglPtr->ash = ASCreatedStereoWindow(dpy);
         }
     }
 #endif
     return window;
 
   error:
-    toglPtr->badWindow = True;
+    tkglPtr->badWindow = True;
     return window;
 }
 
 int
-Togl_CreateGLContext(
-    Togl *toglPtr)
+Tkgl_CreateGLContext(
+    Tkgl *tkglPtr)
 {
     GLXContext context = NULL;
     GLXContext shareCtx = NULL;
     Bool direct = true;  /* If this is false, GLX reports GLXBadFBConfig. */
 
-    if (toglPtr->fbcfg == NULL) {
-	int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
-	toglPtr->visInfo = togl_pixelFormat(toglPtr, scrnum);
+    if (tkglPtr->fbcfg == NULL) {
+	int scrnum = Tk_ScreenNumber(tkglPtr->tkwin);
+	tkglPtr->visInfo = tkgl_pixelFormat(tkglPtr, scrnum);
     }
-    switch(toglPtr->profile) {
+    switch(tkglPtr->profile) {
     case PROFILE_LEGACY:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	context = glXCreateContextAttribsARB(tkglPtr->display, tkglPtr->fbcfg,
 	    shareCtx, direct, attributes_2_1);
 	break;
     case PROFILE_3_2:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	context = glXCreateContextAttribsARB(tkglPtr->display, tkglPtr->fbcfg,
 	    shareCtx, direct, attributes_3_2);
 	break;
     case PROFILE_4_1:
-	context = glXCreateContextAttribsARB(toglPtr->display, toglPtr->fbcfg,
+	context = glXCreateContextAttribsARB(tkglPtr->display, tkglPtr->fbcfg,
 	    shareCtx, direct, attributes_4_1);
 	break;
     default:
-	context = glXCreateContext(toglPtr->display, toglPtr->visInfo,
+	context = glXCreateContext(tkglPtr->display, tkglPtr->visInfo,
 	    shareCtx, direct);
 	break;
     }
     if (context == NULL) {
-	Tcl_SetResult(toglPtr->interp,
+	Tcl_SetResult(tkglPtr->interp,
             "Failed to create GL rendering context", TCL_STATIC);
 	return TCL_ERROR;
     }
-    toglPtr->context = context;
-    toglPtr->surface = CreateRenderingSurface(toglPtr);
+    tkglPtr->context = context;
+    tkglPtr->surface = CreateRenderingSurface(tkglPtr);
     return TCL_OK;
 }
 
 
 /*
- * Togl_MakeWindow
+ * Tkgl_MakeWindow
  *
  * This is a callback function which is called by Tk_MakeWindowExist
- * when the togl widget is mapped.  It sets up the widget record and
+ * when the tkgl widget is mapped.  It sets up the widget record and
  * does other Tk-related initialization.  This function is not allowed
  * to fail.  It must return a valid X window identifier.  If something
  * goes wrong, it sets the badWindow flag in the widget record,
  * which is passed as the instanceData.  The actual work of creating
- * the window has already been done in ToglCreateGLContext.
+ * the window has already been done in TkglCreateGLContext.
  */
 
 Window
-Togl_MakeWindow(
+Tkgl_MakeWindow(
     Tk_Window tkwin,
     Window parent,
     void* instanceData)
 {
-    Togl *toglPtr = (Togl *) instanceData;
-    Window result = toglPtr->surface;
+    Tkgl *tkglPtr = (Tkgl *) instanceData;
+    Window result = tkglPtr->surface;
     if (result == None) {
 	result = Tk_MakeWindow(tkwin, parent);
     }
@@ -703,74 +703,74 @@ Togl_MakeWindow(
 
 
 /*
- * Togl_MakeCurrent
+ * Tkgl_MakeCurrent
  *
- * This is the key function of the Togl widget in its role as the
+ * This is the key function of the Tkgl widget in its role as the
  * manager of an NSOpenGL rendering context.  Must be called by
  * a GL client before drawing into the widget.
  */
 
 void
-Togl_MakeCurrent(
-    const Togl *toglPtr)
+Tkgl_MakeCurrent(
+    const Tkgl *tkglPtr)
 {
-    if (!toglPtr->context) {
+    if (!tkglPtr->context) {
 	return;
     }
-    Display *display = toglPtr ? toglPtr->display : glXGetCurrentDisplay();
+    Display *display = tkglPtr ? tkglPtr->display : glXGetCurrentDisplay();
     if (!display) {
 	return;
     }
     GLXDrawable drawable;
 
-    if (!toglPtr) {
+    if (!tkglPtr) {
 	drawable = None;	
-    } else if (toglPtr->pBufferFlag) {
-	drawable = toglPtr->pbuf;
-    } else if (toglPtr->tkwin) {
-	drawable = Tk_WindowId(toglPtr->tkwin);
+    } else if (tkglPtr->pBufferFlag) {
+	drawable = tkglPtr->pbuf;
+    } else if (tkglPtr->tkwin) {
+	drawable = Tk_WindowId(tkglPtr->tkwin);
     } else {
 	drawable = None;
     }
-    (void) glXMakeCurrent(display, drawable, toglPtr->context);
+    (void) glXMakeCurrent(display, drawable, tkglPtr->context);
 }
 
 
 /*
- * Togl_SwapBuffers
+ * Tkgl_SwapBuffers
  *
- * Called by the GL Client after updating the image.  If the Togl
+ * Called by the GL Client after updating the image.  If the Tkgl
  * is double-buffered it interchanges the front and back framebuffers.
  * otherwise it calls GLFlush.
  */
 
 void
-Togl_SwapBuffers(
-    const Togl *toglPtr){
-    if (toglPtr->doubleFlag) {
-        glXSwapBuffers(Tk_Display(toglPtr->tkwin),
-		       Tk_WindowId(toglPtr->tkwin));
+Tkgl_SwapBuffers(
+    const Tkgl *tkglPtr){
+    if (tkglPtr->doubleFlag) {
+        glXSwapBuffers(Tk_Display(tkglPtr->tkwin),
+		       Tk_WindowId(tkglPtr->tkwin));
     } else {
         glFlush();
     }
 }
 
 /*
- * ToglUpdate
+ * TkglUpdate
  *
- * Called by ToglDisplay whenever the size of the Togl widget may
+ * Called by TkglDisplay whenever the size of the Tkgl widget may
  * have changed.  On macOS it adjusts the frame of the NSView that
  * is being used as the rendering surface.  The other platforms
  * handle the size changes automatically.
  */
 
 void
-Togl_Update(
-    const Togl *toglPtr) {
+Tkgl_Update(
+    const Tkgl *tkglPtr) {
 }
 
 /*
- * Togl_GetExtensions
+ * Tkgl_GetExtensions
  *
  * Queries the rendering context for its extension string, a
  * space-separated list of the names of all supported GL extensions.
@@ -778,54 +778,54 @@ Togl_Update(
  * string is returned in subsequent calls.
  */
 
-const char* Togl_GetExtensions(
-    Togl *toglPtr)
+const char* Tkgl_GetExtensions(
+    Tkgl *tkglPtr)
 {
-    int scrnum = Tk_ScreenNumber(toglPtr->tkwin);
-    return glXQueryExtensionsString(toglPtr->display, scrnum);
+    int scrnum = Tk_ScreenNumber(tkglPtr->tkwin);
+    return glXQueryExtensionsString(tkglPtr->display, scrnum);
 }
 
-void Togl_FreeResources(
-    Togl *toglPtr)
+void Tkgl_FreeResources(
+    Tkgl *tkglPtr)
 {
-    (void) glXMakeCurrent(toglPtr->display, None, NULL);
-    if (toglPtr->context) {
-	if (FindToglWithSameContext(toglPtr) == NULL) {
-	    glXDestroyContext(toglPtr->display, toglPtr->context);
-	    XFree(toglPtr->visInfo);
+    (void) glXMakeCurrent(tkglPtr->display, None, NULL);
+    if (tkglPtr->context) {
+	if (FindTkglWithSameContext(tkglPtr) == NULL) {
+	    glXDestroyContext(tkglPtr->display, tkglPtr->context);
+	    XFree(tkglPtr->visInfo);
 	}
-	if (toglPtr->pBufferFlag && toglPtr->pbuf) {
-	    glXDestroyPbuffer(toglPtr->display, toglPtr->pbuf);
-	    toglPtr->pbuf = 0;
+	if (tkglPtr->pBufferFlag && tkglPtr->pbuf) {
+	    glXDestroyPbuffer(tkglPtr->display, tkglPtr->pbuf);
+	    tkglPtr->pbuf = 0;
 	}
-	toglPtr->context = NULL;
-	toglPtr->visInfo = NULL;
+	tkglPtr->context = NULL;
+	tkglPtr->visInfo = NULL;
     }
-#  if TOGL_USE_OVERLAY
-    if (togl->OverlayContext) {
+#  if TKGL_USE_OVERLAY
+    if (tkgl->OverlayContext) {
 	Tcl_HashEntry *entryPtr;
 	TkWindow *winPtr = (TkWindow *) tkwin;
 	if (winPtr) {
 	    entryPtr = Tcl_FindHashEntry(&winPtr->dispPtr->winTable,
-					 (const char *) togl->overlayWindow);
+					 (const char *) tkgl->overlayWindow);
 	    Tcl_DeleteHashEntry(entryPtr);
 	}
-	if (FindToglWithSameOverlayContext(togl) == NULL)
-	    glXDestroyContext(toglPtr->display, toglPtr->overlayContext);
-	togl->overlayContext = NULL;
+	if (FindTkglWithSameOverlayContext(tkgl) == NULL)
+	    glXDestroyContext(tkglPtr->display, tkglPtr->overlayContext);
+	tkgl->overlayContext = NULL;
     }
 #  endif
 }
 
 void
-Togl_WorldChanged(
+Tkgl_WorldChanged(
     void* instanceData){
     printf("WorldChanged\n");
 }
 
 int
-Togl_TakePhoto(
-    Togl *toglPtr,
+Tkgl_TakePhoto(
+    Tkgl *tkglPtr,
     Tk_PhotoHandle photo)
 {
     printf("TakePhoto\n");
@@ -833,9 +833,9 @@ Togl_TakePhoto(
 }
 
 int
-Togl_CopyContext(
-    const Togl *from,
-    const Togl *to,
+Tkgl_CopyContext(
+    const Tkgl *from,
+    const Tkgl *to,
     unsigned mask)
 {
     printf("CopyContext\n");

@@ -1,6 +1,6 @@
 #------------------------------------------------------------- -*- makefile -*-
 #
-# Makefile for building the Togl extensions.
+# Makefile for building the Tkgl extensions.
 #
 # Basic build, test and install
 #   nmake /f makefile.vc INSTALLDIR=c:\path\to\tcl
@@ -17,7 +17,7 @@
 #------------------------------------------------------------------------------
 
 # The name of the package
-PROJECT = Togl
+PROJECT = Tkgl
 
 PROJECT_REQUIRES_TK = 1
 PRJ_LIBS =
@@ -30,8 +30,8 @@ PRJ_LIBS =
 # hence it is under that condition. TMP_DIR is the output directory
 # defined by rules for object files.
 PRJ_OBJS = \
-	$(TMP_DIR)\togl.obj \
-	$(TMP_DIR)\toglWGL.obj \
+	$(TMP_DIR)\tkgl.obj \
+	$(TMP_DIR)\tkglWGL.obj \
 	$(TMP_DIR)\colormap.obj \
 
 # Define any additional compiler flags that might be required for the project
@@ -43,15 +43,15 @@ PRJ_DEFINES = $(PRJ_DEFINES) -I$(TMP_DIR)
 
 # We must define a pkgindex target that will create a pkgIndex.tcl
 # file in the $(OUT_DIR) directory. We can just redirect to the
-# default-pkgindex target for the Togl extension.
+# default-pkgindex target for the Tkgl extension.
 pkgindex: default-pkgindex
 
 $(ROOT)\manifest.uuid:
    copy $(WIN_DIR)\gitmanifest.in $(ROOT)\manifest.uuid
    /c/msys64/usr/bin/git rev-parse HEAD >>$(ROOT)\manifest.uuid
 
-$(TMP_DIR)\toglUuid.h:	$(ROOT)\manifest.uuid
-	copy $(WIN_DIR)\toglUuid.h.in+$(ROOT)\manifest.uuid $(TMP_DIR)\toglUuid.h
+$(TMP_DIR)\tkglUuid.h:	$(ROOT)\manifest.uuid
+	copy $(WIN_DIR)\tkglUuid.h.in+$(ROOT)\manifest.uuid $(TMP_DIR)\tkglUuid.h
 
 
 # The default install target only installs binaries and scripts so add
@@ -61,4 +61,4 @@ $(TMP_DIR)\toglUuid.h:	$(ROOT)\manifest.uuid
 install: default-install-docs-n
 
 # Explicit dependency rules
-$(GENERICDIR)\togl.c : $(GENERICDIR)\togl.h $(TMP_DIR)\toglUuid.h
+$(GENERICDIR)\tkgl.c : $(GENERICDIR)\tkgl.h $(TMP_DIR)\tkglUuid.h

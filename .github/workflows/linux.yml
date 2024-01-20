@@ -19,10 +19,10 @@ jobs:
 
       - name: Run build script
         run: |
-          bash ./ci/linux/build_linux_togl3.sh
+          bash ./ci/linux/build_linux_tkgl.sh
 
       - name: Save artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: Togl_package
+          name: TkGL_package
           path: ./dist

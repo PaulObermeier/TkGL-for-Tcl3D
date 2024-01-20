@@ -1,5 +1,5 @@
 /*
- * togl.c --
+ * tkgl.c --
  *
  *
  * See the file "license.terms" for information on usage and redistribution of
@@ -7,55 +7,55 @@
  */
 #include "tcl.h"
 #include "tk.h"
-#include "togl.h"
-#include "toglOptions.h" 
+#include "tkgl.h"
+#include "tkglOptions.h" 
 #include <string.h>
 
 /*
  * Declarations of static functions defined in this file:
  */
 
-static void ToglDeletedProc(void *clientData);
-static int  ToglConfigure(Tcl_Interp *interp, Togl *toglPtr);
-static void ToglDisplay(void *clientData);
-static void ToglObjEventProc(void *clientData, XEvent *eventPtr);
-static int  ToglWidgetObjCmd(void *clientData, Tcl_Interp *interp, int objc,
+static void TkglDeletedProc(void *clientData);
+static int  TkglConfigure(Tcl_Interp *interp, Tkgl *tkglPtr);
+static void TkglDisplay(void *clientData);
+static void TkglObjEventProc(void *clientData, XEvent *eventPtr);
+static int  TkglWidgetObjCmd(void *clientData, Tcl_Interp *interp, int objc,
 			     Tcl_Obj * const objv[]);
 static int  ObjectIsEmpty(Tcl_Obj *objPtr);
-static void ToglPostRedisplay(Togl *toglPtr);
-static void ToglFrustum(const Togl *togl, GLdouble left, GLdouble right,
+static void TkglPostRedisplay(Tkgl *tkglPtr);
+static void TkglFrustum(const Tkgl *tkgl, GLdouble left, GLdouble right,
 			GLdouble bottom, GLdouble top, GLdouble zNear,
 			GLdouble zFar);
-static void ToglOrtho(const Togl *togl, GLdouble left, GLdouble right,
+static void TkglOrtho(const Tkgl *tkgl, GLdouble left, GLdouble right,
 		       GLdouble bottom, GLdouble top, GLdouble zNear,
 		      GLdouble zFar);
-static int GetToglFromObj(Tcl_Interp *interp, Tcl_Obj *obj, Togl **target);
+static int GetTkglFromObj(Tcl_Interp *interp, Tcl_Obj *obj, Tkgl **target);
 
 /*
- * The Togl package maintains a per-thread list of all Togl widgets.
+ * The Tkgl package maintains a per-thread list of all Tkgl widgets.
  */
 
 typedef struct {
-    Togl *toglHead;        /* Head of linked list of all Togl widgets. */
+    Tkgl *tkglHead;        /* Head of linked list of all Tkgl widgets. */
     int nextContextTag;    /* Used to assign similar context tags. */
     int initialized;       /* Set to 1 when the struct is initialized. */ 
 } ThreadSpecificData;
 
 static Tcl_ThreadDataKey dataKey;
-static void addToList(Togl *t);
-static void removeFromList(Togl *t);
+static void addToList(Tkgl *t);
+static void removeFromList(Tkgl *t);
 
 
 /*
  *--------------------------------------------------------------
  *
- * ToglObjCmd --
+ * TkglObjCmd --
  *
- *	This procedure is invoked to process the "togl" Tcl command. It
- *	creates a new "togl" widget.  After allocating and initializing
- *      the widget record it first calls ToglConfigure to set up the
+ *	This procedure is invoked to process the "tkgl" Tcl command. It
+ *	creates a new "tkgl" widget.  After allocating and initializing
+ *      the widget record it first calls TkglConfigure to set up the
  *      widget with the specified option values.  Then it calls
- *      Togl_CreateGLContext to create a GL rendering context.  This
+ *      Tkgl_CreateGLContext to create a GL rendering context.  This
  *      allows the client to start drawing before the widget gets
  *      mapped.
  *
@@ -69,13 +69,13 @@ static void removeFromList(Togl *t);
  */
 
 int
-ToglObjCmd(
+TkglObjCmd(
     void *clientData,
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
-    Togl *toglPtr;
+    Tkgl *tkglPtr;
     Tk_Window tkwin = NULL;
     Tk_OptionTable optionTable;
 
@@ -86,8 +86,8 @@ ToglObjCmd(
     static Tk_ClassProcs procs = {0};
     if (procs.size == 0) {
 	procs.size = sizeof(Tk_ClassProcs);
-	procs.worldChangedProc = Togl_WorldChanged;
-	procs.createProc = Togl_MakeWindow;
+	procs.worldChangedProc = Tkgl_WorldChanged;
+	procs.createProc = Tkgl_MakeWindow;
 	procs.modalProc = NULL;
     } 
    
@@ -105,7 +105,7 @@ ToglObjCmd(
     if (tkwin == NULL) {
 	return TCL_ERROR;
     }
-    Tk_SetClass(tkwin, "Togl");
+    Tk_SetClass(tkwin, "Tkgl");
 
     /*
      * Create the option table for this widget class. If it has already been
@@ -114,61 +114,61 @@ ToglObjCmd(
      * will ensure the table is deleted when the interpreter is destroyed.
      */
 
-    optionTable = Tk_CreateOptionTable(interp, toglOptionSpecs);
+    optionTable = Tk_CreateOptionTable(interp, tkglOptionSpecs);
 
     /*
      * Allocate and initialize the widget record.
      */
 
-    toglPtr = (Togl *)ckalloc(sizeof(Togl));
-    memset(toglPtr, 0, sizeof(Togl));
-    toglPtr->tkwin = tkwin;
-    toglPtr->display = Tk_Display(tkwin);
-    toglPtr->interp = interp;
-    toglPtr->widgetCmd = Tcl_CreateObjCommand(interp,
-	    Tk_PathName(toglPtr->tkwin), ToglWidgetObjCmd, toglPtr,
-	    ToglDeletedProc);
-    toglPtr->optionTable = optionTable;
-    if (Tk_InitOptions(interp, (void *) toglPtr, optionTable, tkwin)
+    tkglPtr = (Tkgl *)ckalloc(sizeof(Tkgl));
+    memset(tkglPtr, 0, sizeof(Tkgl));
+    tkglPtr->tkwin = tkwin;
+    tkglPtr->display = Tk_Display(tkwin);
+    tkglPtr->interp = interp;
+    tkglPtr->widgetCmd = Tcl_CreateObjCommand(interp,
+	    Tk_PathName(tkglPtr->tkwin), TkglWidgetObjCmd, tkglPtr,
+	    TkglDeletedProc);
+    tkglPtr->optionTable = optionTable;
+    if (Tk_InitOptions(interp, (void *) tkglPtr, optionTable, tkwin)
 	    != TCL_OK) {
-	Tk_DestroyWindow(toglPtr->tkwin);
-	ckfree(toglPtr);
+	Tk_DestroyWindow(tkglPtr->tkwin);
+	ckfree(tkglPtr);
 	return TCL_ERROR;
     }
-    Tk_SetClassProcs(toglPtr->tkwin, &procs, toglPtr);
-    Tk_CreateEventHandler(toglPtr->tkwin, ExposureMask|StructureNotifyMask,
-	 ToglObjEventProc, (void *) toglPtr);
-    if (Tk_SetOptions(interp, (void *) toglPtr, optionTable, objc - 2,
+    Tk_SetClassProcs(tkglPtr->tkwin, &procs, tkglPtr);
+    Tk_CreateEventHandler(tkglPtr->tkwin, ExposureMask|StructureNotifyMask,
+	 TkglObjEventProc, (void *) tkglPtr);
+    if (Tk_SetOptions(interp, (void *) tkglPtr, optionTable, objc - 2,
 	    objv + 2, tkwin, NULL, NULL) != TCL_OK) {
 	goto error;
     }
     /* Create a rendering context for drawing to the widget. */
-    if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
+    if (Tkgl_CreateGLContext(tkglPtr) != TCL_OK) {
          goto error;
     }
     /* Configure the widget to match the specified options. */
-    if (ToglConfigure(interp, toglPtr) != TCL_OK) {
+    if (TkglConfigure(interp, tkglPtr) != TCL_OK) {
 	goto error;
     }
     /* Add this widget to the global list. */
-    addToList(toglPtr);
+    addToList(tkglPtr);
     Tcl_SetObjResult(interp,
-	Tcl_NewStringObj(Tk_PathName(toglPtr->tkwin), TCL_INDEX_NONE));
+	Tcl_NewStringObj(Tk_PathName(tkglPtr->tkwin), TCL_INDEX_NONE));
     /* Make the widget's context current. */
-    Togl_MakeCurrent(toglPtr);
+    Tkgl_MakeCurrent(tkglPtr);
     return TCL_OK;
 
   error:
-    Tk_DestroyWindow(toglPtr->tkwin);
+    Tk_DestroyWindow(tkglPtr->tkwin);
     return TCL_ERROR;
 }
 
 /*
  *--------------------------------------------------------------
  *
- * ToglWidgetObjCmd --
+ * TkglWidgetObjCmd --
  *
- *      When a Togl widget is created it registers its pathname as a new Tcl
+ *      When a Tkgl widget is created it registers its pathname as a new Tcl
  *      command. This procedure is invoked to process the options for that
  *      command.
  *
@@ -182,15 +182,15 @@ ToglObjCmd(
  */
 
 static int
-ToglWidgetObjCmd(
-    void *clientData,	        /* Information about togl widget. */
+TkglWidgetObjCmd(
+    void *clientData,	        /* Information about tkgl widget. */
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj * const objv[])	/* Argument objects. */
 {
-    Togl *toglPtr = (Togl *)clientData;
+    Tkgl *tkglPtr = (Tkgl *)clientData;
     int result = TCL_OK;
-    static const char *const toglOptions[] = {
+    static const char *const tkglOptions[] = {
         "cget", "configure", "extensions", "glversion", "postredisplay",
 	"render", "swapbuffers", "makecurrent", "takephoto", "loadbitmapfont",
 	"unloadbitmapfont", "write", "uselayer", "showoverlay",
@@ -202,16 +202,16 @@ ToglWidgetObjCmd(
     };
     enum
     {
-        TOGL_CGET, TOGL_CONFIGURE, TOGL_EXTENSIONS,
-        TOGL_GLVERSION, TOGL_POSTREDISPLAY, TOGL_RENDER,
-        TOGL_SWAPBUFFERS, TOGL_MAKECURRENT, TOGL_TAKEPHOTO,
-        TOGL_LOADBITMAPFONT, TOGL_UNLOADBITMAPFONT, TOGL_WRITE,
-        TOGL_USELAYER, TOGL_SHOWOVERLAY, TOGL_HIDEOVERLAY,
-        TOGL_POSTREDISPLAYOVERLAY, TOGL_RENDEROVERLAY,
-        TOGL_EXISTSOVERLAY, TOGL_ISMAPPEDOVERLAY,
-        TOGL_GETOVERLAYTRANSPARENTVALUE,
-        TOGL_DRAWBUFFER, TOGL_CLEAR, TOGL_FRUSTUM, TOGL_ORTHO,
-        TOGL_NUMEYES, TOGL_CONTEXTTAG, TOGL_COPYCONTEXTTO
+        TKGL_CGET, TKGL_CONFIGURE, TKGL_EXTENSIONS,
+        TKGL_GLVERSION, TKGL_POSTREDISPLAY, TKGL_RENDER,
+        TKGL_SWAPBUFFERS, TKGL_MAKECURRENT, TKGL_TAKEPHOTO,
+        TKGL_LOADBITMAPFONT, TKGL_UNLOADBITMAPFONT, TKGL_WRITE,
+        TKGL_USELAYER, TKGL_SHOWOVERLAY, TKGL_HIDEOVERLAY,
+        TKGL_POSTREDISPLAYOVERLAY, TKGL_RENDEROVERLAY,
+        TKGL_EXISTSOVERLAY, TKGL_ISMAPPEDOVERLAY,
+        TKGL_GETOVERLAYTRANSPARENTVALUE,
+        TKGL_DRAWBUFFER, TKGL_CLEAR, TKGL_FRUSTUM, TKGL_ORTHO,
+        TKGL_NUMEYES, TKGL_CONTEXTTAG, TKGL_COPYCONTEXTTO
     };
     Tcl_Obj *resultObjPtr;
     int index;
@@ -221,64 +221,64 @@ ToglWidgetObjCmd(
 	return TCL_ERROR;
     }
 
-    if (Tcl_GetIndexFromObjStruct(interp, objv[1], toglOptions,
+    if (Tcl_GetIndexFromObjStruct(interp, objv[1], tkglOptions,
 	    sizeof(char *), "command", 0, &index) != TCL_OK) {
 	return TCL_ERROR;
     }
 
-    Tcl_Preserve(toglPtr);
+    Tcl_Preserve(tkglPtr);
 
     switch (index) {
-    case TOGL_CGET:
+    case TKGL_CGET:
 	if (objc != 3) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "option");
 	    goto error;
 	}
-	resultObjPtr = Tk_GetOptionValue(interp, (void *)toglPtr,
-		toglPtr->optionTable, objv[2], toglPtr->tkwin);
+	resultObjPtr = Tk_GetOptionValue(interp, (void *)tkglPtr,
+		tkglPtr->optionTable, objv[2], tkglPtr->tkwin);
 	if (resultObjPtr == NULL) {
 	    result = TCL_ERROR;
 	} else {
 	    Tcl_SetObjResult(interp, resultObjPtr);
 	}
 	break;
-    case TOGL_CONFIGURE:
+    case TKGL_CONFIGURE:
 	resultObjPtr = NULL;
 	if (objc == 2) {
-	    resultObjPtr = Tk_GetOptionInfo(interp, (void *)toglPtr,
-		    toglPtr->optionTable, NULL, toglPtr->tkwin);
+	    resultObjPtr = Tk_GetOptionInfo(interp, (void *)tkglPtr,
+		    tkglPtr->optionTable, NULL, tkglPtr->tkwin);
 	    if (resultObjPtr == NULL) {
 		result = TCL_ERROR;
 	    }
 	} else if (objc == 3) {
-	    resultObjPtr = Tk_GetOptionInfo(interp, (void *)toglPtr,
-		    toglPtr->optionTable, objv[2], toglPtr->tkwin);
+	    resultObjPtr = Tk_GetOptionInfo(interp, (void *)tkglPtr,
+		    tkglPtr->optionTable, objv[2], tkglPtr->tkwin);
 	    if (resultObjPtr == NULL) {
 		result = TCL_ERROR;
 	    }
 	} else {
-	    result = Tk_SetOptions(interp, (void *)toglPtr,
-		    toglPtr->optionTable, objc - 2, objv + 2,
-		    toglPtr->tkwin, NULL, NULL);
+	    result = Tk_SetOptions(interp, (void *)tkglPtr,
+		    tkglPtr->optionTable, objc - 2, objv + 2,
+		    tkglPtr->tkwin, NULL, NULL);
 	    if (result == TCL_OK) {
-		result = ToglConfigure(interp, toglPtr);
+		result = TkglConfigure(interp, tkglPtr);
 	    }
-	    if (!toglPtr->updatePending) {
-		Tcl_DoWhenIdle(ToglDisplay, (void *)toglPtr);
-		toglPtr->updatePending = 1;
+	    if (!tkglPtr->updatePending) {
+		Tcl_DoWhenIdle(TkglDisplay, (void *)tkglPtr);
+		tkglPtr->updatePending = 1;
 	    }
 	}
 	if (resultObjPtr != NULL) {
 	    Tcl_SetObjResult(interp, resultObjPtr);
 	}
 	break;
-    case TOGL_EXTENSIONS:
+    case TKGL_EXTENSIONS:
 	/* Return a list of available OpenGL extensions
 	 * TODO: -glu for glu extensions,
 	 * -platform for glx/wgl extensions
 	 */
 	if (objc == 2) {
-	    const char *extensions = Togl_GetExtensions(toglPtr);
+	    const char *extensions = Tkgl_GetExtensions(tkglPtr);
 	    Tcl_Obj *objPtr;
 	    Tcl_Size length = -1;
 	    if (extensions) {
@@ -287,7 +287,7 @@ ToglWidgetObjCmd(
 		(void) Tcl_ListObjLength(interp, objPtr, &length);
 		Tcl_SetObjResult(interp, objPtr);
 	    } else {
-		Tcl_SetResult(toglPtr->interp,
+		Tcl_SetResult(tkglPtr->interp,
 		    "The extensions string is not available now.",
 		    TCL_STATIC);
 		result = TCL_ERROR;
@@ -297,7 +297,7 @@ ToglWidgetObjCmd(
 	    result = TCL_ERROR;
 	}
 	break;
-    case TOGL_GLVERSION:
+    case TKGL_GLVERSION:
 	/* Return the GL version string of the current context. */
 	if (objc == 2) {
 	    const char *version = (const char *)glGetString(GL_VERSION);
@@ -306,7 +306,7 @@ ToglWidgetObjCmd(
 		objPtr = Tcl_NewStringObj(version, -1);
 		Tcl_SetObjResult(interp, objPtr);
 	    } else {
-		Tcl_SetResult(toglPtr->interp,
+		Tcl_SetResult(tkglPtr->interp,
 		    "The version string is not available until "
                      "the widget is mapped.",
 		     TCL_STATIC);
@@ -317,41 +317,41 @@ ToglWidgetObjCmd(
 	    result = TCL_ERROR;
 	}
 	break;
-    case TOGL_POSTREDISPLAY:
+    case TKGL_POSTREDISPLAY:
 	/* schedule the widget to be redrawn */
 	if (objc == 2) {
-	    ToglPostRedisplay(toglPtr);
+	    TkglPostRedisplay(tkglPtr);
 	} else {
 	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    result = TCL_ERROR;
 	}
 	break;
-    case TOGL_RENDER:
+    case TKGL_RENDER:
 	/* force the widget to be redrawn */
 	if (objc == 2) {
-	    ToglDisplay((void *) toglPtr);
+	    TkglDisplay((void *) tkglPtr);
 	} else {
 	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    result = TCL_ERROR;
 	}
 	break;
-    case TOGL_SWAPBUFFERS:
+    case TKGL_SWAPBUFFERS:
 	if (objc == 2) {
-	    Togl_SwapBuffers(toglPtr);
+	    Tkgl_SwapBuffers(tkglPtr);
 	} else {
 	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    result = TCL_ERROR;
 	}
 	break;
-    case TOGL_MAKECURRENT:
+    case TKGL_MAKECURRENT:
 	if (objc == 2) {
-	    Togl_MakeCurrent(toglPtr);
+	    Tkgl_MakeCurrent(tkglPtr);
 	} else {
 	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    result = TCL_ERROR;
 	}
 	break;
-    case TOGL_TAKEPHOTO:
+    case TKGL_TAKEPHOTO:
 	if (objc != 3) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "name");
 	    result = TCL_ERROR;
@@ -368,46 +368,46 @@ ToglWidgetObjCmd(
 		break;
 	    }
 	    glPushAttrib(GL_PIXEL_MODE_BIT);
-	    if (toglPtr->doubleFlag) {
+	    if (tkglPtr->doubleFlag) {
 		glReadBuffer(GL_FRONT);
 	    }
-	    Togl_TakePhoto(toglPtr, photo);
+	    Tkgl_TakePhoto(tkglPtr, photo);
 	    glPopAttrib();    /* restore glReadBuffer */
           }
           break;
-    case TOGL_LOADBITMAPFONT:
-    case TOGL_UNLOADBITMAPFONT:
-    case TOGL_WRITE:
-#if TOGL_USE_FONTS != 1
+    case TKGL_LOADBITMAPFONT:
+    case TKGL_UNLOADBITMAPFONT:
+    case TKGL_WRITE:
+#if TKGL_USE_FONTS != 1
 	Tcl_AppendResult(interp, "unsupported", NULL);
 	result = TCL_ERROR;
 	break;
 #else	
 ERROR
 #endif
-    case TOGL_USELAYER:
-    case TOGL_SHOWOVERLAY:
-    case TOGL_HIDEOVERLAY:
-    case TOGL_POSTREDISPLAYOVERLAY:
-    case TOGL_RENDEROVERLAY:
-    case TOGL_EXISTSOVERLAY:
-    case TOGL_ISMAPPEDOVERLAY:
-    case TOGL_GETOVERLAYTRANSPARENTVALUE:
-#if TOGL_USE_OVERLAY != 1
+    case TKGL_USELAYER:
+    case TKGL_SHOWOVERLAY:
+    case TKGL_HIDEOVERLAY:
+    case TKGL_POSTREDISPLAYOVERLAY:
+    case TKGL_RENDEROVERLAY:
+    case TKGL_EXISTSOVERLAY:
+    case TKGL_ISMAPPEDOVERLAY:
+    case TKGL_GETOVERLAYTRANSPARENTVALUE:
+#if TKGL_USE_OVERLAY != 1
 	Tcl_AppendResult(interp, "unsupported", NULL);
 	result = TCL_ERROR;
 	break;
 #else
 ERROR
 #endif
-    case TOGL_DRAWBUFFER:
-    case TOGL_CLEAR:
+    case TKGL_DRAWBUFFER:
+    case TKGL_CLEAR:
 #if 1
 	Tcl_AppendResult(interp, "unsupported", NULL);
 	result = TCL_ERROR;
 	break;
 #endif
-    case TOGL_FRUSTUM:
+    case TKGL_FRUSTUM:
 	if (objc != 8) {
 	    Tcl_WrongNumArgs(interp, 2, objv,
 			     "left right bottom top near far");
@@ -429,10 +429,10 @@ ERROR
 		result = TCL_ERROR;
 		break;
 	    }
-	    ToglFrustum(toglPtr, left, right, bottom, top, zNear, zFar);
+	    TkglFrustum(tkglPtr, left, right, bottom, top, zNear, zFar);
 	}
 	break;
-    case TOGL_ORTHO:
+    case TKGL_ORTHO:
 	if (objc != 8) {
 	    Tcl_WrongNumArgs(interp, 2, objv,
 			     "left right bottom top near far");
@@ -454,70 +454,70 @@ ERROR
 		result = TCL_ERROR;
 		break;
 	    }
-	    ToglOrtho(toglPtr, left, right, bottom, top, zNear, zFar);
+	    TkglOrtho(tkglPtr, left, right, bottom, top, zNear, zFar);
 	}
 	break;
-    case TOGL_NUMEYES:
+    case TKGL_NUMEYES:
 	if (objc == 2) {
 	    Tcl_SetObjResult(interp, Tcl_NewIntObj(
-		toglPtr->stereo > TOGL_STEREO_ONE_EYE_MAX ? 2 : 1));
+		tkglPtr->stereo > TKGL_STEREO_ONE_EYE_MAX ? 2 : 1));
 	} else {
 	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    result = TCL_ERROR;
 	}
 	break;
-    case TOGL_CONTEXTTAG:
+    case TKGL_CONTEXTTAG:
 	if (objc == 2) {
-	    Tcl_SetObjResult(interp, Tcl_NewIntObj(toglPtr->contextTag));
+	    Tcl_SetObjResult(interp, Tcl_NewIntObj(tkglPtr->contextTag));
 	} else {
 	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    result = TCL_ERROR;
 	}
 	break;
-    case TOGL_COPYCONTEXTTO:
+    case TKGL_COPYCONTEXTTO:
 	if (objc != 4) {
 	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    result = TCL_ERROR;
 	} else {
-	    Togl *to;
+	    Tkgl *to;
 	    unsigned int mask;
 
-	    if (GetToglFromObj(toglPtr->interp, objv[2], &to) == TCL_ERROR
-		|| Tcl_GetIntFromObj(toglPtr->interp, objv[3],
+	    if (GetTkglFromObj(tkglPtr->interp, objv[2], &to) == TCL_ERROR
+		|| Tcl_GetIntFromObj(tkglPtr->interp, objv[3],
 				     (int *) &mask) == TCL_ERROR) {
 		result = TCL_ERROR;
 		break;
 	    }
-	    result = Togl_CopyContext(toglPtr, to, mask);
+	    result = Tkgl_CopyContext(tkglPtr, to, mask);
 	}
 	break;
     default:
 	break;
     }
-    Tcl_Release(toglPtr);
+    Tcl_Release(tkglPtr);
     return result;
 
   error:
-    Tcl_Release(toglPtr);
+    Tcl_Release(tkglPtr);
     return TCL_ERROR;
 }
 
 static void
-ToglPostRedisplay(Togl *toglPtr)
+TkglPostRedisplay(Tkgl *tkglPtr)
 {
-    if (!toglPtr->UpdatePending) {
-        toglPtr->UpdatePending = True;
-        Tcl_DoWhenIdle(ToglDisplay, (void *) toglPtr);
+    if (!tkglPtr->UpdatePending) {
+        tkglPtr->UpdatePending = True;
+        Tcl_DoWhenIdle(TkglDisplay, (void *) tkglPtr);
     }
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * ToglConfigure --
+ * TkglConfigure --
  *
  *	This procedure is called to process an argv/argc list in conjunction
- *	with the Tk option database to configure (or reconfigure) a togl
+ *	with the Tk option database to configure (or reconfigure) a tkgl
  *	widget.
  *
  * Results:
@@ -525,25 +525,25 @@ ToglPostRedisplay(Togl *toglPtr)
  *	then the interp's result contains an error message.
  *
  * Side effects:
- *	Configuration information gets set for toglPtr.
+ *	Configuration information gets set for tkglPtr.
  *
  *----------------------------------------------------------------------
  */
 
 static int
-ToglConfigure(
+TkglConfigure(
     Tcl_Interp *interp,		/* Used for error reporting. */
-    Togl *toglPtr)		/* Information about widget. */
+    Tkgl *tkglPtr)		/* Information about widget. */
 {
     /*
      * Register the desired geometry for the window. Then arrange for the
      * window to be redisplayed.
      */
 
-    Tk_GeometryRequest(toglPtr->tkwin, toglPtr->width, toglPtr->height);
-    if (!toglPtr->updatePending) {
-	Tcl_DoWhenIdle(ToglDisplay, toglPtr);
-	toglPtr->updatePending = 1;
+    Tk_GeometryRequest(tkglPtr->tkwin, tkglPtr->width, tkglPtr->height);
+    if (!tkglPtr->updatePending) {
+	Tcl_DoWhenIdle(TkglDisplay, tkglPtr);
+	tkglPtr->updatePending = 1;
     }
     return TCL_OK;
 }
@@ -551,10 +551,10 @@ ToglConfigure(
 /*
  *--------------------------------------------------------------
  *
- * ToglObjEventProc --
+ * TkglObjEventProc --
  *
  *	This procedure is invoked by the Tk dispatcher for various events on
- *	togls.
+ *	tkgls.
  *
  * Results:
  *	None.
@@ -567,41 +567,41 @@ ToglConfigure(
  */
 
 static void
-ToglObjEventProc(
+TkglObjEventProc(
     void *clientData,	/* Information about window. */
     XEvent *eventPtr)		/* Information about event. */
 {
-    Togl *toglPtr = (Togl *)clientData;
+    Tkgl *tkglPtr = (Tkgl *)clientData;
 
     switch(eventPtr->type) {
     case Expose:
-	if (!toglPtr->updatePending) {
-	    Tcl_DoWhenIdle(ToglDisplay, toglPtr);
-	    toglPtr->updatePending = 1;
+	if (!tkglPtr->updatePending) {
+	    Tcl_DoWhenIdle(TkglDisplay, tkglPtr);
+	    tkglPtr->updatePending = 1;
 	}
 	break;
     case ConfigureNotify:
-	toglPtr->width = Tk_Width(toglPtr->tkwin);
-	toglPtr->height = Tk_Height(toglPtr->tkwin);
-	XResizeWindow(Tk_Display(toglPtr->tkwin), Tk_WindowId(toglPtr->tkwin),
-		      toglPtr->width, toglPtr->height);
-	if (!toglPtr->updatePending) {
-	    Tcl_DoWhenIdle(ToglDisplay, toglPtr);
-	    toglPtr->updatePending = 1;
+	tkglPtr->width = Tk_Width(tkglPtr->tkwin);
+	tkglPtr->height = Tk_Height(tkglPtr->tkwin);
+	XResizeWindow(Tk_Display(tkglPtr->tkwin), Tk_WindowId(tkglPtr->tkwin),
+		      tkglPtr->width, tkglPtr->height);
+	if (!tkglPtr->updatePending) {
+	    Tcl_DoWhenIdle(TkglDisplay, tkglPtr);
+	    tkglPtr->updatePending = 1;
 	}
 	break;
     case DestroyNotify:
-	if (toglPtr->tkwin != NULL) {
-	    Tk_FreeConfigOptions((char *) toglPtr, toglPtr->optionTable,
-		    toglPtr->tkwin);
-	    toglPtr->tkwin = NULL;
-	    Tcl_DeleteCommandFromToken(toglPtr->interp,
-		    toglPtr->widgetCmd);
+	if (tkglPtr->tkwin != NULL) {
+	    Tk_FreeConfigOptions((char *) tkglPtr, tkglPtr->optionTable,
+		    tkglPtr->tkwin);
+	    tkglPtr->tkwin = NULL;
+	    Tcl_DeleteCommandFromToken(tkglPtr->interp,
+		    tkglPtr->widgetCmd);
 	}
-	if (toglPtr->updatePending) {
-	    Tcl_CancelIdleCall(ToglDisplay, toglPtr);
+	if (tkglPtr->updatePending) {
+	    Tcl_CancelIdleCall(TkglDisplay, tkglPtr);
 	}
-	Tcl_EventuallyFree(toglPtr, TCL_DYNAMIC);
+	Tcl_EventuallyFree(tkglPtr, TCL_DYNAMIC);
 	break;
     }
 }
@@ -609,7 +609,7 @@ ToglObjEventProc(
 /*
  *----------------------------------------------------------------------
  *
- * ToglDeletedProc --
+ * TkglDeletedProc --
  *
  *	This procedure is invoked when a widget command is deleted. If the
  *	widget isn't already in the process of being destroyed, this command
@@ -624,14 +624,14 @@ ToglObjEventProc(
  *----------------------------------------------------------------------
  */
 
-/// need to port Togl_EnterStereo and Togl_LeaveStereo
+/// need to port Tkgl_EnterStereo and Tkgl_LeaveStereo
 
 static void
-ToglDeletedProc(
+TkglDeletedProc(
     void *clientData)	/* Pointer to widget record for widget. */
 {
-    Togl *toglPtr = (Togl *)clientData;
-    Tk_Window tkwin = toglPtr->tkwin;
+    Tkgl *tkglPtr = (Tkgl *)clientData;
+    Tk_Window tkwin = tkglPtr->tkwin;
 
     /*
      * This procedure could be invoked either because the window was destroyed
@@ -639,47 +639,47 @@ ToglDeletedProc(
      * because the command was deleted, and then this procedure destroys the
      * widget.
      */
-    // Togl_LeaveStereo(togl, togl->Stereo);
+    // Tkgl_LeaveStereo(tkgl, tkgl->Stereo);
 
-    Tcl_Preserve((void *) toglPtr);
-    if (toglPtr->destroyProc) {
+    Tcl_Preserve((void *) tkglPtr);
+    if (tkglPtr->destroyProc) {
         /* call user's cleanup code */
-        Togl_CallCallback(toglPtr, toglPtr->destroyProc);
+        Tkgl_CallCallback(tkglPtr, tkglPtr->destroyProc);
     }
-    if (toglPtr->timerProc != NULL) {
-        Tcl_DeleteTimerHandler(toglPtr->timerHandler);
-        toglPtr->timerHandler = NULL;
+    if (tkglPtr->timerProc != NULL) {
+        Tcl_DeleteTimerHandler(tkglPtr->timerHandler);
+        tkglPtr->timerHandler = NULL;
     }
-    if (toglPtr->updatePending) {
-        Tcl_CancelIdleCall(ToglDisplay, (void *) toglPtr);
-        toglPtr->updatePending = False;
+    if (tkglPtr->updatePending) {
+        Tcl_CancelIdleCall(TkglDisplay, (void *) tkglPtr);
+        tkglPtr->updatePending = False;
     }
 #ifndef NO_TK_CURSOR
-    if (toglPtr->cursor != NULL) {
-        Tk_FreeCursor(toglPtr->display, toglPtr->cursor);
-        toglPtr->cursor = NULL;
+    if (tkglPtr->cursor != NULL) {
+        Tk_FreeCursor(tkglPtr->display, tkglPtr->cursor);
+        tkglPtr->cursor = NULL;
     }
 #endif
-    removeFromList(toglPtr);
-    Togl_FreeResources(toglPtr);
+    removeFromList(tkglPtr);
+    Tkgl_FreeResources(tkglPtr);
     if (tkwin != NULL) {
         Tk_DeleteEventHandler(tkwin, ExposureMask | StructureNotifyMask,
-                ToglObjEventProc, (void *) toglPtr);
-	if (toglPtr->setGrid > 0) {
+                TkglObjEventProc, (void *) tkglPtr);
+	if (tkglPtr->setGrid > 0) {
 	    Tk_UnsetGrid(tkwin);
 	}
 	Tk_DestroyWindow(tkwin);
     }
-    toglPtr->tkwin = NULL;
-    Tcl_Release((void *) toglPtr);
+    tkglPtr->tkwin = NULL;
+    Tcl_Release((void *) tkglPtr);
 }
 
 /*
  *--------------------------------------------------------------
  *
- * ToglDisplay --
+ * TkglDisplay --
  *
- *	This procedure redraws the contents of a togl window. It is invoked
+ *	This procedure redraws the contents of a tkgl window. It is invoked
  *	as a do-when-idle handler, so it only runs when there's nothing else
  *	for the application to do.
  *
@@ -693,20 +693,20 @@ ToglDeletedProc(
  */
 
 static void
-ToglDisplay(
+TkglDisplay(
     void *clientData)	/* Information about window. */
 {
-    Togl *toglPtr = (Togl *)clientData;
-    Tk_Window tkwin = toglPtr->tkwin;
+    Tkgl *tkglPtr = (Tkgl *)clientData;
+    Tk_Window tkwin = tkglPtr->tkwin;
 
-    toglPtr->updatePending = 0;
+    tkglPtr->updatePending = 0;
     if (!Tk_IsMapped(tkwin)) {
 	return;
     }
-    Togl_Update(toglPtr);
-    Togl_MakeCurrent(toglPtr);
-    if (toglPtr->displayProc) {
-        Togl_CallCallback(toglPtr, toglPtr->displayProc);
+    Tkgl_Update(tkglPtr);
+    Tkgl_MakeCurrent(tkglPtr);
+    if (tkglPtr->displayProc) {
+        Tkgl_CallCallback(tkglPtr, tkglPtr->displayProc);
     }
 #if 0
     /* Very simple tests */
@@ -719,14 +719,14 @@ ToglDisplay(
     }
     glClear(GL_COLOR_BUFFER_BIT);
     toggle = (toggle + 1) % 2;
-    Togl_SwapBuffers(toglPtr);
+    Tkgl_SwapBuffers(tkglPtr);
 #endif
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * Togl_Init --
+ * Tkgl_Init --
  *
  *	Initialize the new package.  The string "Sample" in the
  *	function name must match the PACKAGE declaration at the top of
@@ -736,7 +736,7 @@ ToglDisplay(
  *	A standard Tcl result
  *
  * Side effects:
- *	The Togl package is created.
+ *	The Tkgl package is created.
  *
  *----------------------------------------------------------------------
  */
@@ -751,7 +751,7 @@ extern "C" {
 #endif  /* __cplusplus */
 
 DLLEXPORT int
-Togl_Init(
+Tkgl_Init(
     Tcl_Interp* interp)		/* Tcl interpreter */
 {
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
@@ -764,7 +764,7 @@ Togl_Init(
     if (Tcl_PkgProvideEx(interp, PACKAGE_NAME, PACKAGE_VERSION, NULL) != TCL_OK) {
 	return TCL_ERROR;
     }
-    if (!Tcl_CreateObjCommand(interp, "togl", (Tcl_ObjCmdProc *)ToglObjCmd,
+    if (!Tcl_CreateObjCommand(interp, "tkgl", (Tcl_ObjCmdProc *)TkglObjCmd,
 			      NULL, NULL)) {
 	return TCL_ERROR;
     }
@@ -796,34 +796,34 @@ static Tcl_Obj *GetStereo(
     const char *name = "unknown";
 
     switch (stereo) {
-      case TOGL_STEREO_NONE:
+      case TKGL_STEREO_NONE:
           name = "";
           break;
-      case TOGL_STEREO_LEFT_EYE:
+      case TKGL_STEREO_LEFT_EYE:
           name = "left eye";
           break;
-      case TOGL_STEREO_RIGHT_EYE:
+      case TKGL_STEREO_RIGHT_EYE:
           name = "right eye";
           break;
-      case TOGL_STEREO_NATIVE:
+      case TKGL_STEREO_NATIVE:
           name = "native";
           break;
-      case TOGL_STEREO_SGIOLDSTYLE:
+      case TKGL_STEREO_SGIOLDSTYLE:
           name = "sgioldstyle";
           break;
-      case TOGL_STEREO_ANAGLYPH:
+      case TKGL_STEREO_ANAGLYPH:
           name = "anaglyph";
           break;
-      case TOGL_STEREO_CROSS_EYE:
+      case TKGL_STEREO_CROSS_EYE:
           name = "cross-eye";
           break;
-      case TOGL_STEREO_WALL_EYE:
+      case TKGL_STEREO_WALL_EYE:
           name = "wall-eye";
           break;
-      case TOGL_STEREO_DTI:
+      case TKGL_STEREO_DTI:
           name = "dti";
           break;
-      case TOGL_STEREO_ROW_INTERLEAVED:
+      case TKGL_STEREO_ROW_INTERLEAVED:
           name = "row interleaved";
           break;
     }
@@ -881,31 +881,31 @@ static int SetStereo(
          */
 
         if (Tcl_GetBooleanFromObj(NULL, *value, &stereo) == TCL_OK) {
-            stereo = stereo ? TOGL_STEREO_NATIVE : TOGL_STEREO_NONE;
+            stereo = stereo ? TKGL_STEREO_NATIVE : TKGL_STEREO_NONE;
         } else {
             string = Tcl_GetString(*value);
 
             if (strcmp(string, "") == 0 || strcasecmp(string, "none") == 0) {
-                stereo = TOGL_STEREO_NONE;
+                stereo = TKGL_STEREO_NONE;
             } else if (strcasecmp(string, "native") == 0) {
-                stereo = TOGL_STEREO_NATIVE;
+                stereo = TKGL_STEREO_NATIVE;
                 /* check if available when creating visual */
             } else if (strcasecmp(string, "left eye") == 0) {
-                stereo = TOGL_STEREO_LEFT_EYE;
+                stereo = TKGL_STEREO_LEFT_EYE;
             } else if (strcasecmp(string, "right eye") == 0) {
-                stereo = TOGL_STEREO_RIGHT_EYE;
+                stereo = TKGL_STEREO_RIGHT_EYE;
             } else if (strcasecmp(string, "sgioldstyle") == 0) {
-                stereo = TOGL_STEREO_SGIOLDSTYLE;
+                stereo = TKGL_STEREO_SGIOLDSTYLE;
             } else if (strcasecmp(string, "anaglyph") == 0) {
-                stereo = TOGL_STEREO_ANAGLYPH;
+                stereo = TKGL_STEREO_ANAGLYPH;
             } else if (strcasecmp(string, "cross-eye") == 0) {
-                stereo = TOGL_STEREO_CROSS_EYE;
+                stereo = TKGL_STEREO_CROSS_EYE;
             } else if (strcasecmp(string, "wall-eye") == 0) {
-                stereo = TOGL_STEREO_WALL_EYE;
+                stereo = TKGL_STEREO_WALL_EYE;
             } else if (strcasecmp(string, "dti") == 0) {
-                stereo = TOGL_STEREO_DTI;
+                stereo = TKGL_STEREO_DTI;
             } else if (strcasecmp(string, "row interleaved") == 0) {
-                stereo = TOGL_STEREO_ROW_INTERLEAVED;
+                stereo = TKGL_STEREO_ROW_INTERLEAVED;
             } else {
                 Tcl_ResetResult(interp);
                 Tcl_AppendResult(interp, "bad stereo value \"",
@@ -1099,32 +1099,32 @@ ObjectIsEmpty(Tcl_Obj *objPtr)
 }
 
 /* 
- * Togl_CallCallback
+ * Tkgl_CallCallback
  *
- * Call command with togl widget as only argument
+ * Call command with tkgl widget as only argument
  */
 
 int
-Togl_CallCallback(Togl *togl, Tcl_Obj *cmd)
+Tkgl_CallCallback(Tkgl *tkgl, Tcl_Obj *cmd)
 {
     int     result;
     Tcl_Obj *objv[3];
 
-    if (cmd == NULL || togl->widgetCmd == NULL)
+    if (cmd == NULL || tkgl->widgetCmd == NULL)
         return TCL_OK;
 
     objv[0] = cmd;
     Tcl_IncrRefCount(objv[0]);
     objv[1] =
-            Tcl_NewStringObj(Tcl_GetCommandName(togl->interp, togl->widgetCmd),
+            Tcl_NewStringObj(Tcl_GetCommandName(tkgl->interp, tkgl->widgetCmd),
             -1);
     Tcl_IncrRefCount(objv[1]);
     objv[2] = NULL;
-    result = Tcl_EvalObjv(togl->interp, 2, objv, TCL_EVAL_GLOBAL);
+    result = Tcl_EvalObjv(tkgl->interp, 2, objv, TCL_EVAL_GLOBAL);
     Tcl_DecrRefCount(objv[1]);
     Tcl_DecrRefCount(objv[0]);
     if (result != TCL_OK)
-        Tcl_BackgroundError(togl->interp);
+        Tcl_BackgroundError(tkgl->interp);
     return result;
 }
 
@@ -1132,39 +1132,39 @@ Togl_CallCallback(Togl *togl, Tcl_Obj *cmd)
 /* 
  *----------------------------------------------------------------------
  *
- * Utilities for managing the list of all Togl widgets.
+ * Utilities for managing the list of all Tkgl widgets.
  *
  *----------------------------------------------------------------------
  */
 
 /* 
- * Add a togl widget to the top of the linked list.
+ * Add a tkgl widget to the top of the linked list.
  */
 static void
-addToList(Togl *t)
+addToList(Tkgl *t)
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
         Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
-    t->next = tsdPtr->toglHead;
-    tsdPtr->toglHead = t;
+    t->next = tsdPtr->tkglHead;
+    tsdPtr->tkglHead = t;
 }
 
 /* 
- * Remove a togl widget from the linked list.
+ * Remove a tkgl widget from the linked list.
  */
 static void
-removeFromList(Togl *t)
+removeFromList(Tkgl *t)
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
         Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
-    Togl   *prev, *cur;
-    for (cur = tsdPtr->toglHead, prev = NULL; cur; prev = cur, cur = cur->next) {
+    Tkgl   *prev, *cur;
+    for (cur = tsdPtr->tkglHead, prev = NULL; cur; prev = cur, cur = cur->next) {
         if (t != cur)
             continue;
         if (prev) {
             prev->next = cur->next;
         } else {
-            tsdPtr->toglHead = cur->next;
+            tsdPtr->tkglHead = cur->next;
         }
         break;
     }
@@ -1173,22 +1173,22 @@ removeFromList(Togl *t)
 }
 
 /* 
- * Return a pointer to the widget record of the Togl with a given pathname.
+ * Return a pointer to the widget record of the Tkgl with a given pathname.
  */
-Togl *
-FindTogl(Togl *togl, const char *ident)
+Tkgl *
+FindTkgl(Tkgl *tkgl, const char *ident)
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
         Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
-    Togl   *t;
+    Tkgl   *t;
 
     if (ident[0] != '.') {
-        for (t = tsdPtr->toglHead; t; t = t->next) {
+        for (t = tsdPtr->tkglHead; t; t = t->next) {
             if (strcmp(t->ident, ident) == 0)
                 break;
         }
     } else {
-        for (t = tsdPtr->toglHead; t; t = t->next) {
+        for (t = tsdPtr->tkglHead; t; t = t->next) {
             const char *pathname = Tk_PathName(t->tkwin);
 
             if (strcmp(pathname, ident) == 0)
@@ -1199,19 +1199,19 @@ FindTogl(Togl *togl, const char *ident)
 }
 
 /* 
- * Return pointer to another togl widget with same OpenGL context.
+ * Return pointer to another tkgl widget with same OpenGL context.
  */
-Togl *
-FindToglWithSameContext(const Togl *togl)
+Tkgl *
+FindTkglWithSameContext(const Tkgl *tkgl)
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
         Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
-    Togl   *t;
+    Tkgl   *t;
 
-    for (t = tsdPtr->toglHead; t != NULL; t = t->next) {
-        if (t == togl)
+    for (t = tsdPtr->tkglHead; t != NULL; t = t->next) {
+        if (t == tkgl)
             continue;
-        if ((void *)t->context == (void *)togl->context) {
+        if ((void *)t->context == (void *)tkgl->context) {
             return t;
         }
     }
@@ -1219,7 +1219,7 @@ FindToglWithSameContext(const Togl *togl)
 }
 
 /*
- * ToglFrustum and ToglOrtho:
+ * TkglFrustum and TkglOrtho:
  *
  *     eyeOffset is the distance from the center line
  *     and is negative for the left eye and positive for right eye.
@@ -1229,29 +1229,29 @@ FindToglWithSameContext(const Togl *togl)
  *     of 2.5 inches).
  */
 static void
-ToglFrustum(const Togl *togl, GLdouble left, GLdouble right,
+TkglFrustum(const Tkgl *tkgl, GLdouble left, GLdouble right,
         GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
 {
     GLdouble eyeOffset = 0, eyeShift = 0;
 
-    if (togl->stereo == TOGL_STEREO_LEFT_EYE
-            || togl->currentStereoBuffer == STEREO_BUFFER_LEFT)
-        eyeOffset = -togl->eyeSeparation / 2;   /* for left eye */
-    else if (togl->stereo == TOGL_STEREO_RIGHT_EYE
-            || togl->currentStereoBuffer == STEREO_BUFFER_RIGHT)
-        eyeOffset = togl->eyeSeparation / 2;    /* for right eye */
-    eyeShift = (togl->convergence - zNear) * (eyeOffset / togl->convergence);
+    if (tkgl->stereo == TKGL_STEREO_LEFT_EYE
+            || tkgl->currentStereoBuffer == STEREO_BUFFER_LEFT)
+        eyeOffset = -tkgl->eyeSeparation / 2;   /* for left eye */
+    else if (tkgl->stereo == TKGL_STEREO_RIGHT_EYE
+            || tkgl->currentStereoBuffer == STEREO_BUFFER_RIGHT)
+        eyeOffset = tkgl->eyeSeparation / 2;    /* for right eye */
+    eyeShift = (tkgl->convergence - zNear) * (eyeOffset / tkgl->convergence);
 
     /* compenstate for altered viewports */
-    switch (togl->stereo) {
+    switch (tkgl->stereo) {
       default:
           break;
-      case TOGL_STEREO_SGIOLDSTYLE:
-      case TOGL_STEREO_DTI:
+      case TKGL_STEREO_SGIOLDSTYLE:
+      case TKGL_STEREO_DTI:
           /* squished image is expanded, nothing needed */
           break;
-      case TOGL_STEREO_CROSS_EYE:
-      case TOGL_STEREO_WALL_EYE:{
+      case TKGL_STEREO_CROSS_EYE:
+      case TKGL_STEREO_WALL_EYE:{
           GLdouble delta = (top - bottom) / 2;
 
           top += delta;
@@ -1265,28 +1265,28 @@ ToglFrustum(const Togl *togl, GLdouble left, GLdouble right,
 }
 
 static void
-ToglOrtho(const Togl *togl, GLdouble left, GLdouble right,
+TkglOrtho(const Tkgl *tkgl, GLdouble left, GLdouble right,
         GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
 {
     /* TODO: debug this */
     GLdouble eyeOffset = 0, eyeShift = 0;
 
-    if (togl->currentStereoBuffer == STEREO_BUFFER_LEFT)
-        eyeOffset = -togl->eyeSeparation / 2;   /* for left eye */
-    else if (togl->currentStereoBuffer == STEREO_BUFFER_RIGHT)
-        eyeOffset = togl->eyeSeparation / 2;    /* for right eye */
-    eyeShift = (togl->convergence - zNear) * (eyeOffset / togl->convergence);
+    if (tkgl->currentStereoBuffer == STEREO_BUFFER_LEFT)
+        eyeOffset = -tkgl->eyeSeparation / 2;   /* for left eye */
+    else if (tkgl->currentStereoBuffer == STEREO_BUFFER_RIGHT)
+        eyeOffset = tkgl->eyeSeparation / 2;    /* for right eye */
+    eyeShift = (tkgl->convergence - zNear) * (eyeOffset / tkgl->convergence);
 
     /* compenstate for altered viewports */
-    switch (togl->stereo) {
+    switch (tkgl->stereo) {
       default:
           break;
-      case TOGL_STEREO_SGIOLDSTYLE:
-      case TOGL_STEREO_DTI:
+      case TKGL_STEREO_SGIOLDSTYLE:
+      case TKGL_STEREO_DTI:
           /* squished image is expanded, nothing needed */
           break;
-      case TOGL_STEREO_CROSS_EYE:
-      case TOGL_STEREO_WALL_EYE:{
+      case TKGL_STEREO_CROSS_EYE:
+      case TKGL_STEREO_WALL_EYE:{
           GLdouble delta = (top - bottom) / 2;
 
           top += delta;
@@ -1300,18 +1300,18 @@ ToglOrtho(const Togl *togl, GLdouble left, GLdouble right,
 }
 
 static int
-GetToglFromObj(Tcl_Interp *interp, Tcl_Obj *obj, Togl **toglPtr)
+GetTkglFromObj(Tcl_Interp *interp, Tcl_Obj *obj, Tkgl **tkglPtr)
 {
-    Tcl_Command toglCmd;
+    Tcl_Command tkglCmd;
     Tcl_CmdInfo info;
 
-    toglCmd = Tcl_GetCommandFromObj(interp, obj);
-    if (Tcl_GetCommandInfoFromToken(toglCmd, &info) == 0
-            || info.objProc != ToglWidgetObjCmd) {
-        Tcl_AppendResult(interp, "expected togl command argument", NULL);
+    tkglCmd = Tcl_GetCommandFromObj(interp, obj);
+    if (Tcl_GetCommandInfoFromToken(tkglCmd, &info) == 0
+            || info.objProc != TkglWidgetObjCmd) {
+        Tcl_AppendResult(interp, "expected tkgl command argument", NULL);
         return TCL_ERROR;
     }
-    *toglPtr = (Togl *) info.objClientData;
+    *tkglPtr = (Tkgl *) info.objClientData;
     return TCL_OK;
 }
 

@@ -2,8 +2,8 @@
 /* Code to create RGB palette is taken from the GENGL sample program of Win32
  * SDK */
 
-#include "togl.h"
-#include "toglPlatform.h"
+#include "tkgl.h"
+#include "tkglPlatform.h"
 #include "tkInt.h"  /* for TkWindow */
 #include "tkWinInt.h" /* for TkWinDCState */
 #include "tkIntPlatDecls.h" /* for TkWinChildProc */
@@ -124,9 +124,9 @@ Win32CreateRgbColormap(PIXELFORMATDESCRIPTOR pfd)
  */
 
 Colormap
-Win32CreateCiColormap(Togl *toglPtr)
+Win32CreateCiColormap(Tkgl *tkglPtr)
 {
-    /* Create a colormap with size of togl->ciColormapSize and set all entries
+    /* Create a colormap with size of tkgl->ciColormapSize and set all entries
      * to black */
 
     LOGPALETTE logPalette;
@@ -140,7 +140,7 @@ Win32CreateCiColormap(Togl *toglPtr)
     logPalette.palPalEntry[0].peFlags = 0;
 
     cmap->palette = CreatePalette(&logPalette);
-    cmap->size = toglPtr->ciColormapSize;
+    cmap->size = tkglPtr->ciColormapSize;
     ResizePalette(cmap->palette, cmap->size);   /* sets new entries to black */
     cmap->stale = 0;
 

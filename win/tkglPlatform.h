@@ -1,4 +1,4 @@
-#define TOGL_WGL 1
+#define TKGL_WGL 1
 
 #include <windows.h>
 #include <wingdi.h>

@@ -1,8 +1,8 @@
-#define TOGL_X11 1
+#define TKGL_X11 1
 
 /* sudo apt install libgl1-mesa-dev might produce the headers you need. */
 /*
-  This header file nightmare was copied from Togl 2.1.  I have no
+  This header file nightmare was copied from Tkgl 2.1.  I have no
   idea why this craziness is necessary.  But it seems to work.
 */
 #  include <X11/Xlib.h>

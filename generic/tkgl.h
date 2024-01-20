@@ -11,13 +11,13 @@
 typedef int Tcl_Size;
 #define Tk_MakeWindow(tkwin, parent) TkpMakeWindow((TkWindow *)tkwin, parent)
 #endif
-#include "toglPlatform.h"
+#include "tkglPlatform.h"
 
 /*
  * Forward declarations
  */
 
-typedef struct Togl Togl;
+typedef struct Tkgl Tkgl;
 
 /*
  * Enum used for the -profile option to specify an OpenGL profile.
@@ -29,26 +29,26 @@ enum profile {
 
 
 /*
- * The Togl widget record.  Each Togl widget maintains one of these.
+ * The Tkgl widget record.  Each Tkgl widget maintains one of these.
  */
 
-typedef struct Togl {
-    struct Togl *next;          /* Next in a linked list of all togl widgets.*/
-    Tk_Window tkwin;		/* Window identifier for the togl widget.*/
+typedef struct Tkgl {
+    struct Tkgl *next;          /* Next in a linked list of all tkgl widgets.*/
+    Tk_Window tkwin;		/* Window identifier for the tkgl widget.*/
     Display *display;		/* X token for the window's display. */
     Tcl_Interp *interp;		/* Interpreter associated with widget. */
-    Tcl_Command widgetCmd;	/* Token for togl's widget command. */
+    Tcl_Command widgetCmd;	/* Token for tkgl's widget command. */
     Tk_OptionTable optionTable; /* Token representing the option specs. */
-    int updatePending;		/* A call to ToglDisplay has been scheduled. */
-    int x, y;                   /* Upper left corner of Togl widget */
-    int width;	                /* Width of togl widget in pixels. */
-    int height;	                /* Height of togl widget in pixels. */
+    int updatePending;		/* A call to TkglDisplay has been scheduled. */
+    int x, y;                   /* Upper left corner of Tkgl widget */
+    int width;	                /* Width of tkgl widget in pixels. */
+    int height;	                /* Height of tkgl widget in pixels. */
     int setGrid;                /* positive is grid size for window manager */
     int contextTag;             /* contexts with same tag share display lists */
     XVisualInfo *visInfo;       /* Visual info of the widget */
     Tk_Cursor cursor;           /* The widget's cursor */
     int     timerInterval;      /* Time interval for timer in milliseconds */
-    Tcl_TimerToken timerHandler;  /* Token for togl's timer handler */
+    Tcl_TimerToken timerHandler;  /* Token for tkgl's timer handler */
     Bool    rgbaFlag;           /* configuration flags (ala GLX parameters) */
     int     rgbaRed;
     int     rgbaGreen;
@@ -78,7 +78,7 @@ typedef struct Togl {
     Bool    fullscreenFlag;
     Bool    pBufferFlag;
     Bool    largestPbufferFlag;
-    const char *shareList;      /* name (ident) of Togl to share dlists with */
+    const char *shareList;      /* name (ident) of Tkgl to share dlists with */
     const char *shareContext;   /* name (ident) to share OpenGL context with */
     const char *ident;          /* User's identification string */
     void    *clientData;        /* Pointer to user data */
@@ -99,9 +99,9 @@ typedef struct Togl {
     GLfloat *blueMap;
     GLint   mapSize;            /* Number of indices in our color map */
     int     currentStereoBuffer;
-    int     badWindow;          /* true when Togl_MakeWindow fails or should
+    int     badWindow;          /* true when Tkgl_MakeWindow fails or should
                                  * create a dummy window */
-#if defined(TOGL_WGL)
+#if defined(TKGL_WGL)
     HGLRC   context;            /* OpenGL rendering context */
     HDC     deviceContext;      /* Device context */
     HWND    child;              /* rendering surface for the context */
@@ -110,21 +110,21 @@ typedef struct Togl {
     int     pBufferLost;
     int     pixelFormat;
     const char *extensions;
-#elif defined(TOGL_X11)
+#elif defined(TKGL_X11)
     GLXContext context;         /* OpenGL context for normal planes */
     GLXContext overlayContext;  /* OpenGL context for overlay planes */
     unsigned long pixelFormat;  /* visualID */
     GLXPbuffer pbuf;
     Window surface;             /* rendering surface for the context */
     GLXFBConfig fbcfg;          /* cached FBConfig */
-#elif defined(TOGL_NSOPENGL)
+#elif defined(TKGL_NSOPENGL)
     NSOpenGLContext *context;
     NSOpenGLPixelFormat *pixelFormat;
     NSOpenGLPixelBuffer *pbuf;
     NSView *nsview;             /* rendering surface for the context */
     const char *extensions;
 #endif
-} Togl;
+} Tkgl;
 
 /* The typeMasks used in option specs. */
 
@@ -151,18 +151,18 @@ typedef struct Togl {
  *      All need the eye offset and eye distance set properly.
  */
 /* These versions need one eye drawn */
-#  define TOGL_STEREO_NONE		0
-#  define TOGL_STEREO_LEFT_EYE		1       /* just the left eye */
-#  define TOGL_STEREO_RIGHT_EYE		2       /* just the right eye */
-#  define TOGL_STEREO_ONE_EYE_MAX	127
+#  define TKGL_STEREO_NONE		0
+#  define TKGL_STEREO_LEFT_EYE		1       /* just the left eye */
+#  define TKGL_STEREO_RIGHT_EYE		2       /* just the right eye */
+#  define TKGL_STEREO_ONE_EYE_MAX	127
 /* These versions need both eyes drawn */
-#  define TOGL_STEREO_NATIVE		128
-#  define TOGL_STEREO_SGIOLDSTYLE	129     /* interlaced, SGI API */
-#  define TOGL_STEREO_ANAGLYPH		130
-#  define TOGL_STEREO_CROSS_EYE		131
-#  define TOGL_STEREO_WALL_EYE		132
-#  define TOGL_STEREO_DTI		133     /* dti3d.com */
-#  define TOGL_STEREO_ROW_INTERLEAVED	134     /* www.vrex.com/developer/interleave.htm */
+#  define TKGL_STEREO_NATIVE		128
+#  define TKGL_STEREO_SGIOLDSTYLE	129     /* interlaced, SGI API */
+#  define TKGL_STEREO_ANAGLYPH		130
+#  define TKGL_STEREO_CROSS_EYE		131
+#  define TKGL_STEREO_WALL_EYE		132
+#  define TKGL_STEREO_DTI		133     /* dti3d.com */
+#  define TKGL_STEREO_ROW_INTERLEAVED	134     /* www.vrex.com/developer/interleave.htm */
 
 #ifndef STEREO_BUFFER_NONE
 /* From <X11/extensions/SGIStereo.h>, but we use this constants elsewhere */
@@ -172,12 +172,12 @@ typedef struct Togl {
 #endif
 
 /*
- * Declarations of utility functions defined in togl.c.
+ * Declarations of utility functions defined in tkgl.c.
  */
 
-Togl* FindTogl(Togl *togl, const char *ident);
-Togl* FindToglWithSameContext(const Togl *togl);
-int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
+Tkgl* FindTkgl(Tkgl *tkgl, const char *ident);
+Tkgl* FindTkglWithSameContext(const Tkgl *tkgl);
+int   Tkgl_CallCallback(Tkgl *tkgl, Tcl_Obj *cmd);
 
 /*
  * The functions declared below constitute the interface
@@ -185,64 +185,64 @@ int   Togl_CallCallback(Togl *togl, Tcl_Obj *cmd);
  */
 
 /*
- * Togl_CreateGLContext
+ * Tkgl_CreateGLContext
  *
  * Creates an OpenGL rendering context for the widget.  It is called when the
  * widget is created, before it is mapped. Creating a rendering context also
  * requires creating the rendering surface.  The surface is an NSView on
  * macOS, a child window on Windows and an X Window (i.e. an X widget) on
  * systems using the X window manager.  In each case the surface fills the
- * rectangle in the toplevel window which is occupied by the Togl widget.
+ * rectangle in the toplevel window which is occupied by the Tkgl widget.
  */
 
-int Togl_CreateGLContext(Togl *toglPtr);
+int Tkgl_CreateGLContext(Tkgl *tkglPtr);
 
 /*
- * Togl_MakeWindow
+ * Tkgl_MakeWindow
  *
  * This is a callback function which is called by Tk_MakeWindowExist
- * when the togl widget is mapped.  It sets up the widget record and
+ * when the tkgl widget is mapped.  It sets up the widget record and
  * does other Tk-related initialization.  This function is not allowed
  * to fail.  I must return a valid X window identifier.  If something
  * goes wrong, it sets the badWindow flag in the widget record,
  * which is passed as the instanceData.
  */
 
-Window Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
+Window Tkgl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
 
 /*
- * Togl_MakeCurrent
+ * Tkgl_MakeCurrent
  *
- * This is the key function of the Togl widget in its role as the
+ * This is the key function of the Tkgl widget in its role as the
  * manager of an NSOpenGL rendering context.  Must be called by
  * a GL client before drawing into the widget.
  */
 
-void Togl_MakeCurrent(const Togl *toglPtr);
+void Tkgl_MakeCurrent(const Tkgl *tkglPtr);
 
 /*
- * Togl_SwapBuffers
+ * Tkgl_SwapBuffers
  *
- * Called by the GL Client after updating the image.  If the Togl
+ * Called by the GL Client after updating the image.  If the Tkgl
  * is double-buffered it interchanges the front and back framebuffers.
  * otherwise it calls GLFlush.
  */
 
-void Togl_SwapBuffers(const Togl *toglPtr);
+void Tkgl_SwapBuffers(const Tkgl *tkglPtr);
 
 /*
- * ToglUpdate
+ * TkglUpdate
  *
- * Called by ToglDisplay whenever the size of the Togl widget may
+ * Called by TkglDisplay whenever the size of the Tkgl widget may
  * have changed.  On macOS it adjusts the frame of the NSView that
  * is being used as the rendering surface.  The other platforms
  * handle the size changes automatically.
  */
 
-void Togl_Update(const Togl *toglPtr);
+void Tkgl_Update(const Tkgl *tkglPtr);
 
 /*
- * Togl_GetExtensions
+ * Tkgl_GetExtensions
  *
  * Queries the rendering context for its extension string, a
  * space-separated list of the names of all supported GL extensions.
@@ -250,12 +250,12 @@ void Togl_Update(const Togl *toglPtr);
  * string is returned in subsequent calls.
  */
 
-const char* Togl_GetExtensions(Togl *toglPtr);
+const char* Tkgl_GetExtensions(Tkgl *tkglPtr);
 
-void Togl_FreeResources(Togl *toglPtr);
-int Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo);
-int Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask);
-void Togl_WorldChanged(void* instanceData);
+void Tkgl_FreeResources(Tkgl *tkglPtr);
+int Tkgl_TakePhoto(Tkgl *tkglPtr, Tk_PhotoHandle photo);
+int Tkgl_CopyContext(const Tkgl *from, const Tkgl *to, unsigned mask);
+void Tkgl_WorldChanged(void* instanceData);
 
 /*
  * Local Variables:

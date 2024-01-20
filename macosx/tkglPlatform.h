@@ -1,4 +1,4 @@
-#define TOGL_NSOPENGL 1
+#define TKGL_NSOPENGL 1
 
 #include <Foundation/Foundation.h>
 #include <AppKit/NSOpenGL.h>

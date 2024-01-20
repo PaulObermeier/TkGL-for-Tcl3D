@@ -316,7 +316,7 @@ VPATH = $(srcdir):$(srcdir)/build:$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win
 build/%.@OBJEXT@: %.c
 	$(COMPILE) -c $< -o $@
 
-$(srcdir)/build/togl.@OBJEXT@:	toglUuid.h
+$(srcdir)/build/tkgl.@OBJEXT@:	tkglUuid.h
 
 $(srcdir)/manifest.uuid:
 	printf "git-" >$(srcdir)/manifest.uuid
@@ -325,8 +325,8 @@ $(srcdir)/manifest.uuid:
 	    svn info --show-item last-changed-revision >>$(srcdir)/manifest.uuid) || \
 	    printf "unknown" >$(srcdir)/manifest.uuid)
 
-toglUuid.h:	$(srcdir)/manifest.uuid
-	echo "#define TOGL_VERSION_UUID \\" >$@
+tkglUuid.h:	$(srcdir)/manifest.uuid
+	echo "#define TKGL_VERSION_UUID \\" >$@
 	cat $(srcdir)/manifest.uuid >>$@
 	echo "" >>$@
 

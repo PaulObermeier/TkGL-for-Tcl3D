@@ -1,4 +1,4 @@
-#include "togl.h"
+#include "tkgl.h"
 #include <OpenGL/glext.h>
 #include <OpenGL/gl.h>
 
@@ -8,25 +8,25 @@
 #include <AppKit/NSView.h>
 #include <tkMacOSXInt.h>              /* for MacDrawable */
 #include <ApplicationServices/ApplicationServices.h>
-#define Togl_MacOSXGetDrawablePort(togl) TkMacOSXGetDrawablePort((Drawable) ((TkWindow *) togl->TkWin)->privatePtr)
+#define Tkgl_MacOSXGetDrawablePort(tkgl) TkMacOSXGetDrawablePort((Drawable) ((TkWindow *) tkgl->TkWin)->privatePtr)
 
 static NSOpenGLPixelFormat *
-togl_pixelFormat(Togl *togl)
+tkgl_pixelFormat(Tkgl *tkgl)
 {
     NSOpenGLPixelFormatAttribute   attribs[32];
     int     na = 0;
     NSOpenGLPixelFormat *pix;
 
 #if 0
-    if (togl->multisampleFlag && !hasMultisampling) {
-        Tcl_SetResult(togl->interp,
+    if (tkgl->multisampleFlag && !hasMultisampling) {
+        Tcl_SetResult(tkgl->interp,
                 "multisampling not supported", TCL_STATIC);
         return NULL;
     }
 #endif
 
-    if (togl->pBufferFlag && !togl->rgbaFlag) {
-        Tcl_SetResult(togl->interp,
+    if (tkgl->pBufferFlag && !tkgl->rgbaFlag) {
+        Tcl_SetResult(tkgl->interp,
                 "puffer must be RGB[A]", TCL_STATIC);
         return NULL;
     }
@@ -38,56 +38,56 @@ togl_pixelFormat(Togl *togl)
     attribs[na++] = NSOpenGLPFAAccelerated;
     attribs[na++] = NSOpenGLPFANoRecovery;
     */
-    if (togl->rgbaFlag) {
+    if (tkgl->rgbaFlag) {
         /* RGB[A] mode */
         attribs[na++] = NSOpenGLPFAColorSize;
-	attribs[na++] = togl->rgbaRed + togl->rgbaGreen + togl->rgbaBlue;
+	attribs[na++] = tkgl->rgbaRed + tkgl->rgbaGreen + tkgl->rgbaBlue;
 	/* NSOpenGL does not take separate red,green,blue sizes. */
-        if (togl->alphaFlag) {
+        if (tkgl->alphaFlag) {
             attribs[na++] = NSOpenGLPFAAlphaSize;
-            attribs[na++] = togl->alphaSize;
+            attribs[na++] = tkgl->alphaSize;
         }
     } else {
         /* Color index mode */
-        Tcl_SetResult(togl->interp,
+        Tcl_SetResult(tkgl->interp,
                 "Color index mode not supported", TCL_STATIC);
         return NULL;
     }
-    if (togl->depthFlag) {
+    if (tkgl->depthFlag) {
         attribs[na++] = NSOpenGLPFADepthSize;
-        attribs[na++] = togl->depthSize;
+        attribs[na++] = tkgl->depthSize;
     }
-    if (togl->doubleFlag) {
+    if (tkgl->doubleFlag) {
         attribs[na++] = NSOpenGLPFADoubleBuffer;
     }
-    if (togl->stencilFlag) {
+    if (tkgl->stencilFlag) {
         attribs[na++] = NSOpenGLPFAStencilSize;
-        attribs[na++] = togl->stencilSize;
+        attribs[na++] = tkgl->stencilSize;
     }
-    if (togl->accumFlag) {
+    if (tkgl->accumFlag) {
         attribs[na++] = NSOpenGLPFAAccumSize;
-        attribs[na++] = togl->accumRed + togl->accumGreen + togl->accumBlue + (togl->alphaFlag ? togl->accumAlpha : 0);
+        attribs[na++] = tkgl->accumRed + tkgl->accumGreen + tkgl->accumBlue + (tkgl->alphaFlag ? tkgl->accumAlpha : 0);
     }
-    if (togl->multisampleFlag) {
+    if (tkgl->multisampleFlag) {
         attribs[na++] = NSOpenGLPFAMultisample;
         attribs[na++] = NSOpenGLPFASampleBuffers;
         attribs[na++] = 1;
         attribs[na++] = NSOpenGLPFASamples;
         attribs[na++] = 2;
     }
-    if (togl->auxNumber != 0) {
+    if (tkgl->auxNumber != 0) {
         attribs[na++] = NSOpenGLPFAAuxBuffers;
-        attribs[na++] = togl->auxNumber;
+        attribs[na++] = tkgl->auxNumber;
     }
-    if (togl->stereo == TOGL_STEREO_NATIVE) {
+    if (tkgl->stereo == TKGL_STEREO_NATIVE) {
         attribs[na++] = NSOpenGLPFAStereo;
     }
-    if (togl->fullscreenFlag) {
-        Tcl_SetResult(togl->interp,
+    if (tkgl->fullscreenFlag) {
+        Tcl_SetResult(tkgl->interp,
                 "FullScreen mode not supported.", TCL_STATIC);
         return NULL;
     }
-    switch(togl->profile) {
+    switch(tkgl->profile) {
     case PROFILE_LEGACY:
 	attribs[na++] = NSOpenGLPFAOpenGLProfile;
 	attribs[na++] = NSOpenGLProfileVersionLegacy;
@@ -106,7 +106,7 @@ togl_pixelFormat(Togl *togl)
 
     pix = [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs];
     if (pix == nil) {
-        Tcl_SetResult(togl->interp, "couldn't choose pixel format",
+        Tcl_SetResult(tkgl->interp, "couldn't choose pixel format",
                 TCL_STATIC);
         return NULL;
     }
@@ -114,9 +114,9 @@ togl_pixelFormat(Togl *togl)
 }
 
 static int
-togl_describePixelFormat(Togl *togl)
+tkgl_describePixelFormat(Tkgl *tkgl)
 {
-    NSOpenGLPixelFormat *pfmt = togl->pixelFormat;
+    NSOpenGLPixelFormat *pfmt = tkgl->pixelFormat;
 
     /* fill in RgbaFlag, DoubleFlag, and Stereo */
     GLint   has_rgba, has_doublebuf, has_depth, has_accum, has_alpha,
@@ -132,21 +132,21 @@ togl_describePixelFormat(Togl *togl)
     [pfmt getValues:&has_stereo forAttribute:NSOpenGLPFAStereo forVirtualScreen:vscr];
     [pfmt getValues:&has_multisample forAttribute:NSOpenGLPFASampleBuffers forVirtualScreen:vscr];
 
-    togl->rgbaFlag = (has_rgba != 0);
-    togl->doubleFlag = (has_doublebuf != 0);
-    togl->depthFlag = (has_depth != 0);
-    togl->accumFlag = (has_accum != 0);
-    togl->alphaFlag = (has_alpha != 0);
-    togl->stencilFlag = (has_stencil != 0);
-    togl->stereo = (has_stereo ? TOGL_STEREO_NATIVE : TOGL_STEREO_NONE);
-    togl->multisampleFlag = (has_multisample != 0);
+    tkgl->rgbaFlag = (has_rgba != 0);
+    tkgl->doubleFlag = (has_doublebuf != 0);
+    tkgl->depthFlag = (has_depth != 0);
+    tkgl->accumFlag = (has_accum != 0);
+    tkgl->alphaFlag = (has_alpha != 0);
+    tkgl->stencilFlag = (has_stencil != 0);
+    tkgl->stereo = (has_stereo ? TKGL_STEREO_NATIVE : TKGL_STEREO_NONE);
+    tkgl->multisampleFlag = (has_multisample != 0);
     return True;
 }
 
 #define isPow2(x) (((x) & ((x) - 1)) == 0)
 
 static NSOpenGLPixelBuffer *
-togl_createPbuffer(Togl *togl)
+tkgl_createPbuffer(Tkgl *tkgl)
 {
     GLint   min_size[2], max_size[2];
     Bool    hasPbuffer;
@@ -158,72 +158,72 @@ togl_createPbuffer(Togl *togl)
     extensions = (const char *) glGetString(GL_EXTENSIONS);
     hasPbuffer = (strstr(extensions, "GL_APPLE_pixel_buffer") != NULL);
     if (!hasPbuffer) {
-        Tcl_SetResult(togl->interp,
+        Tcl_SetResult(tkgl->interp,
                 "pbuffers are not supported", TCL_STATIC);
         return NULL;
     }
     glGetIntegerv(GL_MIN_PBUFFER_VIEWPORT_DIMS_APPLE, min_size);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, max_size);
-    virtualScreen = [togl->context currentVirtualScreen];
+    virtualScreen = [tkgl->context currentVirtualScreen];
     for (;;) {
         /* make sure we don't exceed the maximum size because if we do,
          * NSOpenGLPixelBuffer allocationmay succeed and later uses of
 	 * the pbuffer fail
 	 */
-        if (togl->width < min_size[0])
-            togl->width = min_size[0];
-        else if (togl->width > max_size[0]) {
-            if (togl->largestPbufferFlag)
-                togl->width = max_size[0];
+        if (tkgl->width < min_size[0])
+            tkgl->width = min_size[0];
+        else if (tkgl->width > max_size[0]) {
+            if (tkgl->largestPbufferFlag)
+                tkgl->width = max_size[0];
             else {
-                Tcl_SetResult(togl->interp,
+                Tcl_SetResult(tkgl->interp,
                         "pbuffer too large", TCL_STATIC);
                 return NULL;
             }
         }
-        if (togl->height < min_size[1])
-            togl->height = min_size[1];
-        else if (togl->height > max_size[1]) {
-            if (togl->largestPbufferFlag)
-                togl->height = max_size[1];
+        if (tkgl->height < min_size[1])
+            tkgl->height = min_size[1];
+        else if (tkgl->height > max_size[1]) {
+            if (tkgl->largestPbufferFlag)
+                tkgl->height = max_size[1];
             else {
-                Tcl_SetResult(togl->interp,
+                Tcl_SetResult(tkgl->interp,
                         "pbuffer too large", TCL_STATIC);
                 return NULL;
             }
         }
 
-        if (isPow2(togl->width) && isPow2(togl->height))
+        if (isPow2(tkgl->width) && isPow2(tkgl->height))
             target = GL_TEXTURE_2D;
         else
             target = GL_TEXTURE_RECTANGLE_ARB;
 
 	pbuf = [[NSOpenGLPixelBuffer alloc] initWithTextureTarget:target
-		textureInternalFormat:(togl->alphaFlag ? GL_RGBA : GL_RGB)
+		textureInternalFormat:(tkgl->alphaFlag ? GL_RGBA : GL_RGB)
 		textureMaxMipMapLevel:0
-		pixelsWide:togl->width pixelsHigh:togl->height];
+		pixelsWide:tkgl->width pixelsHigh:tkgl->height];
         if (pbuf != nil) {
             /* setPixelBuffer allocates the framebuffer space */
-	  [togl->context setPixelBuffer:pbuf cubeMapFace:0 mipMapLevel:0 
+	  [tkgl->context setPixelBuffer:pbuf cubeMapFace:0 mipMapLevel:0 
 	   currentVirtualScreen:virtualScreen];
 	  return pbuf;
 	}
-        if (!togl->largestPbufferFlag
-                || togl->width == min_size[0] || togl->height == min_size[1]) {
-            Tcl_SetResult(togl->interp,
+        if (!tkgl->largestPbufferFlag
+                || tkgl->width == min_size[0] || tkgl->height == min_size[1]) {
+            Tcl_SetResult(tkgl->interp,
                     "unable to create pbuffer", TCL_STATIC);
             return NULL;
         }
         /* largest unavailable, try something smaller */
-        togl->width = togl->width / 2 + togl->width % 2;
-        togl->height = togl->width / 2 + togl->height % 2;
+        tkgl->width = tkgl->width / 2 + tkgl->width % 2;
+        tkgl->height = tkgl->width / 2 + tkgl->height % 2;
     }
 }
 
 void
-togl_destroyPbuffer(Togl *togl)
+tkgl_destroyPbuffer(Tkgl *tkgl)
 {
-    [togl->pbuf release];
+    [tkgl->pbuf release];
 }
 
 /* Declarations that Apple leaves out of gl.h */
@@ -231,19 +231,19 @@ extern const GLubyte *glGetStringi(GLenum name, GLuint index);
 extern void glGetIntegerv(GLenum pname, GLint  *params);
 #define GL_NUM_EXTENSIONS 0x821D
 
-const char* Togl_GetExtensions(
-    Togl *toglPtr)
+const char* Tkgl_GetExtensions(
+    Tkgl *tkglPtr)
 {
     char *buffer = NULL;
     int bufsize = 0;
     int strsize = 0;
     int num;
     
-    if (toglPtr->profile == PROFILE_LEGACY) {
+    if (tkglPtr->profile == PROFILE_LEGACY) {
 	return (const char *)glGetString(GL_EXTENSIONS);
     }
-    if (toglPtr->extensions) {
-	return toglPtr->extensions;
+    if (tkglPtr->extensions) {
+	return tkglPtr->extensions;
     }
     glGetIntegerv(GL_NUM_EXTENSIONS, &num);
     buffer = ckalloc(1536);
@@ -266,21 +266,21 @@ const char* Togl_GetExtensions(
 	strsize += strlcpy(buffer + strsize, " ", bufsize);
     }
     buffer[strsize - 1] = '\0';
-    toglPtr->extensions = buffer;
-    return toglPtr->extensions;
+    tkglPtr->extensions = buffer;
+    return tkglPtr->extensions;
 }
 
 /*
- *  Togl_Update
+ *  Tkgl_Update
  *
- *    Called by ToglDisplay.  On macOS this sets the size of the NSView being
+ *    Called by TkglDisplay.  On macOS this sets the size of the NSView being
  *    used as the OpenGL drawing surface.  Also, if the widget's NSView has
  *    not been assigned to its NSOpenGLContext, that will be done here.  This
  *    step is not needed on other platforms, where the surface is managed by
  *    the window.
  */
 
-void Togl_Update(const Togl *toglPtr)
+void Tkgl_Update(const Tkgl *tkglPtr)
 {
   // The coordinates of the frame of an NSView are in points, but the
   // coordinates of the bounds of an NSView managed by an
@@ -290,11 +290,11 @@ void Togl_Update(const Togl *toglPtr)
 
     Rect widgetRect, toplevelRect;
     NSRect newFrame;
-    TkWindow *widget = (TkWindow *) toglPtr->tkwin;
+    TkWindow *widget = (TkWindow *) tkglPtr->tkwin;
     TkWindow *toplevel = widget->privatePtr->toplevel->winPtr;
 
-    if (toglPtr->context && [toglPtr->context view] != toglPtr->nsview) {
-	[toglPtr->context setView:toglPtr->nsview];
+    if (tkglPtr->context && [tkglPtr->context view] != tkglPtr->nsview) {
+	[tkglPtr->context setView:tkglPtr->nsview];
     }
 
     
@@ -306,8 +306,8 @@ void Togl_Update(const Togl *toglPtr)
     newFrame.size.width = widgetRect.right - widgetRect.left;
     newFrame.size.height = widgetRect.bottom - widgetRect.top;
 
-    [toglPtr->nsview setFrame:newFrame];
-    [toglPtr->context update];  
+    [tkglPtr->nsview setFrame:newFrame];
+    [tkglPtr->context update];  
 }
 
 /* Display reconfiguration callback. Documented as needed by Apple QA1209.
@@ -316,11 +316,11 @@ void Togl_Update(const Togl *toglPtr)
  */
 
 static void
-SetMacBufRect(Togl *togl)
+SetMacBufRect(Tkgl *tkgl)
 {
     Rect r, rt;
     NSRect    rect;
-    TkWindow *w = (TkWindow *) togl->tkwin;
+    TkWindow *w = (TkWindow *) tkgl->tkwin;
     TkWindow *t = w->privatePtr->toplevel->winPtr;
 
     TkMacOSXWinBounds(w, &r);
@@ -331,8 +331,8 @@ SetMacBufRect(Togl *togl)
     rect.size.width = r.right - r.left;
     rect.size.height = r.bottom - r.top;
 
-    [togl->nsview setFrame:rect];
-    [togl->context update];
+    [tkgl->nsview setFrame:rect];
+    [tkgl->context update];
     
     /* TODO: Support full screen. */
 }
@@ -341,115 +341,115 @@ static void
 ReconfigureCB(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags,
         void *closure)
 {
-    Togl   *togl = (Togl *) closure;
+    Tkgl   *tkgl = (Tkgl *) closure;
 
     if (0 != (flags & kCGDisplayBeginConfigurationFlag))
         return;                 /* wait until display is reconfigured */
 
-    SetMacBufRect(togl);
-    Togl_MakeCurrent(togl);
-    if (togl->context) {
-        if (togl->reshapeProc) {
-            Togl_CallCallback(togl, togl->reshapeProc);
+    SetMacBufRect(tkgl);
+    Tkgl_MakeCurrent(tkgl);
+    if (tkgl->context) {
+        if (tkgl->reshapeProc) {
+            Tkgl_CallCallback(tkgl, tkgl->reshapeProc);
         } else {
-            glViewport(0, 0, togl->width, togl->height);
+            glViewport(0, 0, tkgl->width, tkgl->height);
         }
     }
 }
 
 /*
- *  Togl_CreateGLContext
+ *  Tkgl_CreateGLContext
  *
- *  Creates an NSOpenGLContext and assigns it to toglPtr->context.
- *  The pixelFormat index is saved ins ToglPtr->pixelFormat.  Also
+ *  Creates an NSOpenGLContext and assigns it to tkglPtr->context.
+ *  The pixelFormat index is saved ins TkglPtr->pixelFormat.  Also
  *  creates and NSView to serve as the rendering surface.  The NSView
  *  is assigned as a subview and occupies the rectangle in the content
- *  view which is assigned as to the Togl widget.
+ *  view which is assigned as to the Tkgl widget.
  *
  *  Returns a standard Tcl result.
  */
 
 int
-Togl_CreateGLContext(Togl *toglPtr)
+Tkgl_CreateGLContext(Tkgl *tkglPtr)
 {
-    if (toglPtr->context) {
+    if (tkglPtr->context) {
 	return TCL_OK;
     }
     //// FIX ME - the sharing does not make sense.
     // shareList and shareContext are supposed to be mutually exclusive.
-    if (toglPtr->shareList) {
-        /* We will share the display lists with an existing togl widget. */
-        Togl *shareWith = FindTogl(toglPtr, toglPtr->shareList);
+    if (tkglPtr->shareList) {
+        /* We will share the display lists with an existing tkgl widget. */
+        Tkgl *shareWith = FindTkgl(tkglPtr, tkglPtr->shareList);
         if (shareWith) {
-	    toglPtr->pixelFormat = shareWith->pixelFormat;
-            toglPtr->context = shareWith->context;
-            toglPtr->contextTag = shareWith->contextTag;
+	    tkglPtr->pixelFormat = shareWith->pixelFormat;
+            tkglPtr->context = shareWith->context;
+            tkglPtr->contextTag = shareWith->contextTag;
         } else {
-	    Tcl_SetResult(toglPtr->interp,
+	    Tcl_SetResult(tkglPtr->interp,
 		"Invalid widget specified in the sharelist option.",
 		TCL_STATIC);
 	  return TCL_ERROR;
 	}
-    } else if (toglPtr->shareContext) {
-        /* We will share the OpenGL context of an existing Togl widget. */
-        Togl *shareWith = FindTogl(toglPtr, toglPtr->shareContext);
+    } else if (tkglPtr->shareContext) {
+        /* We will share the OpenGL context of an existing Tkgl widget. */
+        Tkgl *shareWith = FindTkgl(tkglPtr, tkglPtr->shareContext);
 	if (shareWith == NULL) {
-	    Tcl_SetResult(toglPtr->interp,
+	    Tcl_SetResult(tkglPtr->interp,
 		"Invalid widget specified in the sharecontext option.",
 		TCL_STATIC);
 	  return TCL_ERROR;
 	}
-	toglPtr->pixelFormat = shareWith->pixelFormat;
-	toglPtr->context = [[NSOpenGLContext alloc]
+	tkglPtr->pixelFormat = shareWith->pixelFormat;
+	tkglPtr->context = [[NSOpenGLContext alloc]
 	    initWithCGLContextObj: (CGLContextObj) shareWith->context];
     } else {
-	toglPtr->context = [NSOpenGLContext alloc];
-	toglPtr->pixelFormat = togl_pixelFormat(toglPtr);
-	[toglPtr->context initWithFormat:toglPtr->pixelFormat
+	tkglPtr->context = [NSOpenGLContext alloc];
+	tkglPtr->pixelFormat = tkgl_pixelFormat(tkglPtr);
+	[tkglPtr->context initWithFormat:tkglPtr->pixelFormat
 			    shareContext:nil];
-	if (toglPtr->context== nil){
-	    [toglPtr->pixelFormat release];
-	    toglPtr->pixelFormat = nil;
-	    Tcl_SetResult(toglPtr->interp,
+	if (tkglPtr->context== nil){
+	    [tkglPtr->pixelFormat release];
+	    tkglPtr->pixelFormat = nil;
+	    Tcl_SetResult(tkglPtr->interp,
 		"Could not create OpenGL context", TCL_STATIC);
 	    return TCL_ERROR;
 	}
 	// Make the new context current.  This ensures that there is
-	// always a current context whenever a Togl exists, so GL
+	// always a current context whenever a Tkgl exists, so GL
 	// calls made before mapping the widget will not crash.
-	[toglPtr->context makeCurrentContext];
+	[tkglPtr->context makeCurrentContext];
     }
     return TCL_OK;
 }
  
 /* 
- * Togl_MakeWindow
+ * Tkgl_MakeWindow
  *
  *   Window creation function, invoked as a callback from Tk_MakeWindowExist.
  */
 
 Window
-Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData)
+Tkgl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData)
 {
-    Togl   *toglPtr = (Togl *) instanceData;
+    Tkgl   *tkglPtr = (Tkgl *) instanceData;
     Display *display;
     Colormap cmap;
     int     scrnum;
     Window  window = None;
 
-    if (toglPtr->badWindow) {
+    if (tkglPtr->badWindow) {
         return Tk_MakeWindow(tkwin, parent);
     }
 
     /* for color index mode photos */
-    if (toglPtr->redMap)
-        free(toglPtr->redMap);
-    if (toglPtr->greenMap)
-        free(toglPtr->greenMap);
-    if (toglPtr->blueMap)
-        free(toglPtr->blueMap);
-    toglPtr->redMap = toglPtr->greenMap = toglPtr->blueMap = NULL;
-    toglPtr->mapSize = 0;
+    if (tkglPtr->redMap)
+        free(tkglPtr->redMap);
+    if (tkglPtr->greenMap)
+        free(tkglPtr->greenMap);
+    if (tkglPtr->blueMap)
+        free(tkglPtr->blueMap);
+    tkglPtr->redMap = tkglPtr->greenMap = tkglPtr->blueMap = NULL;
+    tkglPtr->mapSize = 0;
  
     display = Tk_Display(tkwin);
     scrnum = Tk_ScreenNumber(tkwin);
@@ -460,74 +460,74 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData)
      */
     window = Tk_MakeWindow(tkwin, parent);
 
-    /* if (!toglPtr->pBufferFlag) { */
-    /*     printf("Togl_MakeWindow: calling XMapWindow\n"); */
+    /* if (!tkglPtr->pBufferFlag) { */
+    /*     printf("Tkgl_MakeWindow: calling XMapWindow\n"); */
     /*     (void) XMapWindow(display, window); */
     /* } */
 
-    if (toglPtr->pixelFormat) {
-        if (!togl_describePixelFormat(toglPtr)) {
-            Tcl_SetResult(toglPtr->interp,
+    if (tkglPtr->pixelFormat) {
+        if (!tkgl_describePixelFormat(tkglPtr)) {
+            Tcl_SetResult(tkglPtr->interp,
                     "couldn't choose pixel format", TCL_STATIC);
             goto error;
         }
     } else {
-        toglPtr->pixelFormat = (void *)togl_pixelFormat(toglPtr);
-        if (toglPtr->pixelFormat == nil) {
+        tkglPtr->pixelFormat = (void *)tkgl_pixelFormat(tkglPtr);
+        if (tkglPtr->pixelFormat == nil) {
             goto error;
         }
     }
     
-    if (toglPtr->visInfo == NULL) {
+    if (tkglPtr->visInfo == NULL) {
         Visual *visual= DefaultVisual(display, scrnum);
-        toglPtr->visInfo = (XVisualInfo *) calloc(1, sizeof (XVisualInfo));
-        toglPtr->visInfo->screen = scrnum;
-        toglPtr->visInfo->visual = visual;
-        toglPtr->visInfo->visualid = visual->visualid;
+        tkglPtr->visInfo = (XVisualInfo *) calloc(1, sizeof (XVisualInfo));
+        tkglPtr->visInfo->screen = scrnum;
+        tkglPtr->visInfo->visual = visual;
+        tkglPtr->visInfo->visualid = visual->visualid;
 #  if defined(__cplusplus) || defined(c_plusplus)
-        toglPtr->visInfo->c_class = visual->c_class;
+        tkglPtr->visInfo->c_class = visual->c_class;
 #  else
-        toglPtr->visInfo->class = visual->class;
+        tkglPtr->visInfo->class = visual->class;
 #  endif
-        toglPtr->visInfo->depth = visual->bits_per_rgb;
+        tkglPtr->visInfo->depth = visual->bits_per_rgb;
     }
 
     /* 
      * We should already have a context, but ...
      */
-    if (Togl_CreateGLContext(toglPtr) != TCL_OK) {
+    if (Tkgl_CreateGLContext(tkglPtr) != TCL_OK) {
          goto error;
     }
-    if (!toglPtr->pBufferFlag) {
-      toglPtr->nsview = [[NSView alloc] initWithFrame:NSZeroRect];
-      [toglPtr->nsview setWantsBestResolutionOpenGLSurface:NO];
-      MacDrawable *d = ((TkWindow *) toglPtr->tkwin)->privatePtr;
+    if (!tkglPtr->pBufferFlag) {
+      tkglPtr->nsview = [[NSView alloc] initWithFrame:NSZeroRect];
+      [tkglPtr->nsview setWantsBestResolutionOpenGLSurface:NO];
+      MacDrawable *d = ((TkWindow *) tkglPtr->tkwin)->privatePtr;
       NSView *topview = d->toplevel->view;	
-      [topview addSubview:toglPtr->nsview];
+      [topview addSubview:tkglPtr->nsview];
 
       /* TODO: Appears setView has to be deferred until the window is mapped,
        * or it gives "invalid drawable" error.  But MapNotify doesn't happen.
        * I think toplevel is already mapped.  Iconifying and deiconifying
        * the main window makes the graphics work.
        */
-      /*      [toglPtr->context setView:toglPtr->nsview];*/
+      /*      [tkglPtr->context setView:tkglPtr->nsview];*/
     }
-    if (toglPtr->context == NULL) {
-        Tcl_SetResult(toglPtr->interp,
+    if (tkglPtr->context == NULL) {
+        Tcl_SetResult(tkglPtr->interp,
             "could not create rendering context", TCL_STATIC);
         goto error;
     }
-    CGDisplayRegisterReconfigurationCallback(ReconfigureCB, toglPtr);
-    if (toglPtr->pBufferFlag) {
-        toglPtr->pbuf = togl_createPbuffer(toglPtr);
-        if (!toglPtr->pbuf) {
-            /* tcl result set in togl_createPbuffer */
-            if (!toglPtr->shareContext) {
-	        [toglPtr->context release];
-		[toglPtr->pixelFormat release];
+    CGDisplayRegisterReconfigurationCallback(ReconfigureCB, tkglPtr);
+    if (tkglPtr->pBufferFlag) {
+        tkglPtr->pbuf = tkgl_createPbuffer(tkglPtr);
+        if (!tkglPtr->pbuf) {
+            /* tcl result set in tkgl_createPbuffer */
+            if (!tkglPtr->shareContext) {
+	        [tkglPtr->context release];
+		[tkglPtr->pixelFormat release];
             }
-            toglPtr->context = NULL;
-            toglPtr->pixelFormat = nil;
+            tkglPtr->context = NULL;
+            tkglPtr->pixelFormat = nil;
             goto error;
         }
         return window;
@@ -536,120 +536,120 @@ Togl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData)
     /* 
      * find a colormap
      */
-    if (toglPtr->rgbaFlag) {
+    if (tkglPtr->rgbaFlag) {
         /* Colormap for RGB mode */
         cmap = DefaultColormap(display, scrnum);
     } else {
         /* Colormap for CI mode */
-        if (toglPtr->privateCmapFlag) {
+        if (tkglPtr->privateCmapFlag) {
             /* need read/write colormap so user can store own color entries */
             /* need to figure out how to do this correctly on Mac... */
             cmap = DefaultColormap(display, scrnum);
         } else {
-            if (toglPtr->visInfo->visual == DefaultVisual(display, scrnum)) {
+            if (tkglPtr->visInfo->visual == DefaultVisual(display, scrnum)) {
                 /* share default/root colormap */
                 cmap = Tk_Colormap(tkwin);
             } else {
                 /* make a new read-only colormap */
                 cmap = XCreateColormap(display,
-                        XRootWindow(display, toglPtr->visInfo->screen),
-                        toglPtr->visInfo->visual, AllocNone);
+                        XRootWindow(display, tkglPtr->visInfo->screen),
+                        tkglPtr->visInfo->visual, AllocNone);
             }
         }
     }
 
     /* Make sure Tk knows to switch to the new colormap when the cursor is over
      * this window when running in color index mode. */
-    (void) Tk_SetWindowVisual(tkwin, toglPtr->visInfo->visual,
-            toglPtr->visInfo->depth, cmap);
+    (void) Tk_SetWindowVisual(tkwin, tkglPtr->visInfo->visual,
+            tkglPtr->visInfo->depth, cmap);
 
-#if TOGL_USE_OVERLAY
-    if (toglPtr->OverlayFlag) {
-        if (SetupOverlay(toglPtr) == TCL_ERROR) {
+#if TKGL_USE_OVERLAY
+    if (tkglPtr->OverlayFlag) {
+        if (SetupOverlay(tkglPtr) == TCL_ERROR) {
             fprintf(stderr, "Warning: couldn't setup overlay.\n");
-            toglPtr->OverlayFlag = False;
+            tkglPtr->OverlayFlag = False;
         }
     }
 #endif
 
     /* Request the X window to be displayed */
     (void) XMapWindow(display, window);
-    if (!toglPtr->rgbaFlag) {
+    if (!tkglPtr->rgbaFlag) {
         int     index_size;
         GLint   index_bits;
 
         glGetIntegerv(GL_INDEX_BITS, &index_bits);
         index_size = 1 << index_bits;
-        if (toglPtr->mapSize != index_size) {
-            if (toglPtr->redMap)
-                free(toglPtr->redMap);
-            if (toglPtr->greenMap)
-                free(toglPtr->greenMap);
-            if (toglPtr->blueMap)
-                free(toglPtr->blueMap);
-            toglPtr->mapSize = index_size;
-            toglPtr->redMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
-            toglPtr->greenMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
-            toglPtr->blueMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
+        if (tkglPtr->mapSize != index_size) {
+            if (tkglPtr->redMap)
+                free(tkglPtr->redMap);
+            if (tkglPtr->greenMap)
+                free(tkglPtr->greenMap);
+            if (tkglPtr->blueMap)
+                free(tkglPtr->blueMap);
+            tkglPtr->mapSize = index_size;
+            tkglPtr->redMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
+            tkglPtr->greenMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
+            tkglPtr->blueMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
         }
     }
 #ifdef HAVE_AUTOSTEREO
-    if (toglPtr->Stereo == TOGL_STEREO_NATIVE) {
-        if (!toglPtr->as_initialized) {
+    if (tkglPtr->Stereo == TKGL_STEREO_NATIVE) {
+        if (!tkglPtr->as_initialized) {
             const char *autostereod;
 
-            toglPtr->as_initialized = True;
+            tkglPtr->as_initialized = True;
             if ((autostereod = getenv("AUTOSTEREOD")) == NULL)
                 autostereod = AUTOSTEREOD;
             if (autostereod && *autostereod) {
-                if (ASInitialize(toglPtr->display, autostereod) == Success) {
-                    toglPtr->ash = ASCreatedStereoWindow(display);
+                if (ASInitialize(tkglPtr->display, autostereod) == Success) {
+                    tkglPtr->ash = ASCreatedStereoWindow(display);
                 }
             }
         } else {
-            toglPtr->ash = ASCreatedStereoWindow(display);
+            tkglPtr->ash = ASCreatedStereoWindow(display);
         }
     }
 #endif
     return window;
 
   error:
-    toglPtr->badWindow = True;
+    tkglPtr->badWindow = True;
     return window;
 }
 
 /* 
- * Togl_WorldChanged
+ * Tkgl_WorldChanged
  *
  *    Add support for setgrid option.
  */
 void
-Togl_WorldChanged(ClientData instanceData)
+Tkgl_WorldChanged(ClientData instanceData)
 {
-    Togl   *togl = (Togl *) instanceData;
+    Tkgl   *tkgl = (Tkgl *) instanceData;
     int     width;
     int     height;
 
-    if (togl->pBufferFlag)
+    if (tkgl->pBufferFlag)
         width = height = 1;
     else {
-        width = togl->width;
-        height = togl->height;
+        width = tkgl->width;
+        height = tkgl->height;
     }
-    Tk_GeometryRequest(togl->tkwin, width, height);
-    Tk_SetInternalBorder(togl->tkwin, 0);
-    if (togl->setGrid > 0) {
-        Tk_SetGrid(togl->tkwin,
-		   width / togl->setGrid,
-		   height / togl->setGrid,
-		   togl->setGrid, togl->setGrid);
+    Tk_GeometryRequest(tkgl->tkwin, width, height);
+    Tk_SetInternalBorder(tkgl->tkwin, 0);
+    if (tkgl->setGrid > 0) {
+        Tk_SetGrid(tkgl->tkwin,
+		   width / tkgl->setGrid,
+		   height / tkgl->setGrid,
+		   tkgl->setGrid, tkgl->setGrid);
     } else {
-        Tk_UnsetGrid(togl->tkwin);
+        Tk_UnsetGrid(tkgl->tkwin);
     }
 }
 
 /* 
- * Togl_TakePhoto
+ * Tkgl_TakePhoto
  *
  *   Take a photo image of the current OpenGL window.  May have problems
  *   if window is partially obscured, either by other windows or by the
@@ -657,11 +657,11 @@ Togl_WorldChanged(ClientData instanceData)
  */
 
 int
-Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo)
+Tkgl_TakePhoto(Tkgl *tkglPtr, Tk_PhotoHandle photo)
 {
     GLubyte *buffer;
     unsigned char *cp;
-    int y, midy, width = toglPtr->width, height = toglPtr->height;
+    int y, midy, width = tkglPtr->width, height = tkglPtr->height;
     buffer = (GLubyte *) ckalloc(width * height * 4);
     Tk_PhotoImageBlock photoBlock;
     photoBlock.pixelPtr = buffer;
@@ -674,13 +674,13 @@ Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo)
     photoBlock.offset[2] = 2;
     photoBlock.offset[3] = 3;
     glPushAttrib(GL_PIXEL_MODE_BIT);
-    if (toglPtr->doubleFlag) {
+    if (tkglPtr->doubleFlag) {
         glReadBuffer(GL_FRONT);
     }
-    if (!toglPtr->rgbaFlag) {
-        glPixelMapfv(GL_PIXEL_MAP_I_TO_R, toglPtr->mapSize, toglPtr->redMap);
-        glPixelMapfv(GL_PIXEL_MAP_I_TO_G, toglPtr->mapSize, toglPtr->greenMap);
-        glPixelMapfv(GL_PIXEL_MAP_I_TO_B, toglPtr->mapSize, toglPtr->blueMap);
+    if (!tkglPtr->rgbaFlag) {
+        glPixelMapfv(GL_PIXEL_MAP_I_TO_R, tkglPtr->mapSize, tkglPtr->redMap);
+        glPixelMapfv(GL_PIXEL_MAP_I_TO_G, tkglPtr->mapSize, tkglPtr->greenMap);
+        glPixelMapfv(GL_PIXEL_MAP_I_TO_B, tkglPtr->mapSize, tkglPtr->blueMap);
     }
     glPushClientAttrib(GL_CLIENT_PIXEL_STORE_BIT);
     glPixelStorei(GL_PACK_ALIGNMENT, 4);        /* guarantee performance */
@@ -705,7 +705,7 @@ Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo)
             *m_cp++ = c;
         }
     }
-    Tk_PhotoPutBlock(toglPtr->interp, photo, &photoBlock, 0, 0,
+    Tk_PhotoPutBlock(tkglPtr->interp, photo, &photoBlock, 0, 0,
 	width, height, TK_PHOTO_COMPOSITE_SET);
     glPopClientAttrib();
     glPopAttrib();    /* glReadBuffer */
@@ -714,26 +714,26 @@ Togl_TakePhoto(Togl *toglPtr, Tk_PhotoHandle photo)
 }
 
 /* 
- * Togl_MakeCurrent
+ * Tkgl_MakeCurrent
  *
  *   Bind the OpenGL rendering context to the specified
- *   Togl widget.  ????If given a NULL argument, then the
+ *   Tkgl widget.  ????If given a NULL argument, then the
  *   OpenGL context is released without assigning a new one.????
  */
 
 void
-Togl_MakeCurrent(const Togl *toglPtr)
+Tkgl_MakeCurrent(const Tkgl *tkglPtr)
 {
-    if (toglPtr != NULL && toglPtr->context != NULL) {
-        [toglPtr->context makeCurrentContext];
+    if (tkglPtr != NULL && tkglPtr->context != NULL) {
+        [tkglPtr->context makeCurrentContext];
 	// If our context is in use by another view or pixel buffer,
 	// reassign it to our view or pixel buffer.
-        if (FindToglWithSameContext(toglPtr) != NULL) {
-            if (!toglPtr->pBufferFlag) {
-	        [toglPtr->context setView:toglPtr->nsview];
+        if (FindTkglWithSameContext(tkglPtr) != NULL) {
+            if (!tkglPtr->pBufferFlag) {
+	        [tkglPtr->context setView:tkglPtr->nsview];
             } else {
-	        GLint virtualScreen = [toglPtr->context currentVirtualScreen];
-                [toglPtr->context setPixelBuffer:toglPtr->pbuf
+	        GLint virtualScreen = [tkglPtr->context currentVirtualScreen];
+                [tkglPtr->context setPixelBuffer:tkglPtr->pbuf
 				  cubeMapFace:0
 				  mipMapLevel:0
 			 currentVirtualScreen:virtualScreen];
@@ -743,17 +743,17 @@ Togl_MakeCurrent(const Togl *toglPtr)
 }
 
 void
-Togl_SwapBuffers(const Togl *toglPtr)
+Tkgl_SwapBuffers(const Tkgl *tkglPtr)
 {
-    if (toglPtr->doubleFlag) {
-        [toglPtr->context flushBuffer];
+    if (tkglPtr->doubleFlag) {
+        [tkglPtr->context flushBuffer];
     } else {
         glFlush();
     }
 }
 
 int
-Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask)
+Tkgl_CopyContext(const Tkgl *from, const Tkgl *to, unsigned mask)
 {
     int same = (from->context == to->context);
 
@@ -762,35 +762,35 @@ Togl_CopyContext(const Togl *from, const Togl *to, unsigned mask)
     }
     [to->context copyAttributesFromContext:from->context withMask:mask];
     if (same)
-        Togl_MakeCurrent(to);
+        Tkgl_MakeCurrent(to);
     return TCL_OK;
 }
 
-void Togl_FreeResources(
-    Togl *toglPtr)
+void Tkgl_FreeResources(
+    Tkgl *tkglPtr)
 {
     [NSOpenGLContext clearCurrentContext];
-    if (toglPtr->extensions) {
-	ckfree((void *)toglPtr->extensions);
-	toglPtr->extensions = NULL;
+    if (tkglPtr->extensions) {
+	ckfree((void *)tkglPtr->extensions);
+	tkglPtr->extensions = NULL;
     }
-    if (toglPtr->context) {
-	if (FindToglWithSameContext(toglPtr) == NULL) {
-	    [toglPtr->context release];
-	    toglPtr->context = nil;
+    if (tkglPtr->context) {
+	if (FindTkglWithSameContext(tkglPtr) == NULL) {
+	    [tkglPtr->context release];
+	    tkglPtr->context = nil;
 	}
-	[toglPtr->nsview removeFromSuperview];
-	[toglPtr->nsview release];
-	toglPtr->nsview = nil;
-	CGDisplayRemoveReconfigurationCallback(ReconfigureCB, toglPtr);
-	free(toglPtr->visInfo);
+	[tkglPtr->nsview removeFromSuperview];
+	[tkglPtr->nsview release];
+	tkglPtr->nsview = nil;
+	CGDisplayRemoveReconfigurationCallback(ReconfigureCB, tkglPtr);
+	free(tkglPtr->visInfo);
     }
-    if (toglPtr->pBufferFlag && toglPtr->pbuf) {
-	togl_destroyPbuffer(toglPtr);
-	toglPtr->pbuf = 0;
+    if (tkglPtr->pBufferFlag && tkglPtr->pbuf) {
+	tkgl_destroyPbuffer(tkglPtr);
+	tkglPtr->pbuf = 0;
     }
-    toglPtr->context = NULL;
-    toglPtr->visInfo = NULL;
+    tkglPtr->context = NULL;
+    tkglPtr->visInfo = NULL;
 }
 
 /*

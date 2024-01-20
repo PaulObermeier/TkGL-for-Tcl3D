@@ -13,5 +13,5 @@
  */
 
 Colormap Win32CreateRgbColormap(PIXELFORMATDESCRIPTOR pfd);
-Colormap Win32CreateCiColormap(Togl *toglPtr);
+Colormap Win32CreateCiColormap(Tkgl *tkglPtr);
 

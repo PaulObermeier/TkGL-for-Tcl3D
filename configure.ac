@@ -19,7 +19,7 @@ dnl	to configure the system for the local environment.
 # so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([Togl],[3.0])
+AC_INIT([Tkgl],[1.0])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -71,7 +71,7 @@ TEA_SETUP_COMPILER
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES([togl.c])
+TEA_ADD_SOURCES([tkgl.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([])
@@ -95,17 +95,17 @@ TEA_ADD_TCL_SOURCES([])
 
 TEA_ADD_INCLUDES([-I\"${srcdir}/generic\"])
 if test "${TEA_PLATFORM}" == "windows" ; then
-    TEA_ADD_SOURCES([toglWinGL.c])
+    TEA_ADD_SOURCES([tkglWinGL.c])
     TEA_ADD_INCLUDES([-I\"${srcdir}/win\"])
 else
     if test "${TEA_WINDOWINGSYSTEM}" = "x11"; then
-        TEA_ADD_SOURCES([toglGLX.c])
+        TEA_ADD_SOURCES([tkglGLX.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/unix\"])
 	TEA_ADD_LIBS([-lX11 -lGL])
     else
-        TEA_ADD_SOURCES([toglNSOpenGL.c])
+        TEA_ADD_SOURCES([tkglNSOpenGL.c])
         TEA_ADD_INCLUDES([-I\"${srcdir}/macosx\"])
-        # On macOS, compile Togl source files as objective C because they need
+        # On macOS, compile Tkgl source files as objective C because they need
         # access to the OpenGL framework and the NSView class.
         TEA_ADD_CFLAGS([-x objective-c -mmacosx-version-min=10.9])
         TEA_ADD_CFLAGS([-arch x86_64 -arch arm64])
