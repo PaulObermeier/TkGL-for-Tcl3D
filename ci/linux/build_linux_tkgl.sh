@@ -8,7 +8,7 @@ TK8_URL=https://prdownloads.sourceforge.net/tcl/tk$TCL8_VERSION-src.tar.gz
 TCL9_URL=https://prdownloads.sourceforge.net/tcl/tcl$TCL9_VERSION-src.tar.gz
 TK9_URL=https://prdownloads.sourceforge.net/tcl/tk$TCL9_VERSION-src.tar.gz
 
-mkdir -p dist/Togl3.0
+mkdir -p dist/Tkgl1.0
 rm -rf tcl9 tk9 tcl8 tk8
 mkdir tcl9 tk9 tcl8 tk8
 
@@ -30,7 +30,7 @@ cd ../..
 cp ci/linux/linux_configure configure
 ./configure --with-tcl=tcl9/unix --with-tk=tk9/unix
 make
-mv libtcl9Togl3.0.so dist/Togl3.0
+mv libtcl9Tkgl1.0.so dist/Tkgl1.0
 rm -rf build
 
 echo downloading tcl/tk source ...
@@ -50,5 +50,5 @@ make -j4
 cd ../..
 ./configure --with-tcl=tcl8/unix --with-tk=tk8/unix
 make
-mv libTogl3.0.so dist/Togl3.0
-mv pkgIndex.tcl dist/Togl3.0
+mv libTkgl1.0.so dist/Tkgl.0
+mv pkgIndex.tcl dist/Tkgl1.0
