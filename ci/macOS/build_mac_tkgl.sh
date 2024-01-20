@@ -8,7 +8,7 @@ TK8_URL=https://prdownloads.sourceforge.net/tcl/tk$TCL8_VERSION-src.tar.gz
 TCL9_URL=https://prdownloads.sourceforge.net/tcl/tcl$TCL9_VERSION-src.tar.gz
 TK9_URL=https://prdownloads.sourceforge.net/tcl/tk$TCL9_VERSION-src.tar.gz
 
-mkdir -p dist/Togl3.0
+mkdir -p dist/Tkgl1.0
 rm -rf tcl9 tk9 tcl8 tk8
 mkdir tcl9 tk9 tcl8 tk8
 
@@ -28,7 +28,7 @@ cd ..
 cp ci/macOS/mac_configure configure
 ./configure --with-tcl=build/tcl/Tcl.framework --with-tk=build/tk/Tk.framework
 make
-mv libtcl9Togl3.0.dylib Togl3.0
+mv libtcl9Tkgl1.0.dylib Tkgl1.0
 rm -rf build
 
 echo downloading tcl/tk source ...
@@ -46,5 +46,5 @@ make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
 cd ..
 ./configure --with-tcl=build/tcl/Tcl.framework --with-tk=build/tk/Tk.framework
 make
-mv libTogl3.0.dylib dist/Togl3.0
-mv pkgIndex.tcl dist/Togl3.0
+mv libTkgl1.0.dylib dist/Tkgl1.0
+mv pkgIndex.tcl dist/Tkgl1.0
