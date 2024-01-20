@@ -5,6 +5,7 @@ on: [push]
 jobs:
   build_package:
     name: Build Tcl extension for Tcl 8 and 9 on ubuntu
+    runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux2014_x86_64
     steps:
       - name: Checkout
