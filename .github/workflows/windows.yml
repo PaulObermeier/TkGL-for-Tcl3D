@@ -18,7 +18,7 @@ jobs:
           bash ./ci/windows/build_windows_tkgl.sh
 
       - name: Save artifacts
-        uses: actions/upload-artifacts@v3
+        uses: actions/upload-artifact@v3
         with:
           name: TkGL_package
           path: ./dist
