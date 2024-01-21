@@ -15,7 +15,7 @@ jobs:
 
       - name: Run build script
         run: |
-          bash ./ci/linux/build_linux_tkgl.sh
+          bash ./ci/windows/build_windows_tkgl.sh
 
       - name: Save artifacts
         uses: actions/upload-artifacts@v3
