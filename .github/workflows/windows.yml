@@ -60,7 +60,7 @@ jobs:
         run: |
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
-	  &nmake -f makefile.vc clean
+          &nmake -f makefile.vc clean
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
         working-directory: win
