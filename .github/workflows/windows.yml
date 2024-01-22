@@ -19,7 +19,7 @@ jobs:
 
       - name: Run .bat scripts
         run: |
-	  cmd<./ci/windows/build_windows_tcltk.bat
+          cmd<./ci/windows/build_windows_tcltk.bat
           cmd<./ci/windows/build_windows_tkgl.bat
 
       - name: Save artifacts
