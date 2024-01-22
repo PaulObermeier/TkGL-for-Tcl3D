@@ -56,7 +56,17 @@ jobs:
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
         working-directory: tcl9/win
 
+      - name: Build TkGL for Tcl/Tk 8 and 9
+        run: |
+          &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
+	  Rename-Item -Path "Release_AMD64_VC1937" -NewName "release8" 
+          &nmake -f makefile.vc clean
+          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
+	  Rename-Item -Path "Release_AMD64_VC1937" -NewName "release9" 
+          working-directory: win
+
       - name: List directory with bash
         run: |
-          ls -l TclTk*
+          ls -l win/release8
+	  ls -l win/release9
         shell: bash
