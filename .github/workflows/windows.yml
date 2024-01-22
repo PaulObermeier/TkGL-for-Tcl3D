@@ -31,7 +31,7 @@ jobs:
 
       - name: Build Tk 8 with powershell
         run: |
-          &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
+          &nmake INSTALLDIR=..\..\TclTk8 TCLDIR=..\..\tcl8 -f makefile.vc
           if ($lastexitcode -ne 0) {
              throw "nmake exit code for Tk 8: $lastexitcode"
           }
@@ -42,16 +42,16 @@ jobs:
         run: |
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
           if ($lastexitcode -ne 0) {
-             throw "nmake exit code for Tcl 8: $lastexitcode"
+             throw "nmake exit code for Tcl 9: $lastexitcode"
           }
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
         working-directory: tcl9/win
 
       - name: Build Tk 9 with powershell
         run: |
-          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
+          &nmake INSTALLDIR=..\..\TclTk9 TCLDIR=../../tcl9 -f makefile.vc
           if ($lastexitcode -ne 0) {
-             throw "nmake exit code for Tk 8: $lastexitcode"
+             throw "nmake exit code for Tk 9: $lastexitcode"
           }
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
         working-directory: tk9/win
@@ -60,6 +60,7 @@ jobs:
         run: |
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
+	  &nmake -f makefile.vc clean
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
         working-directory: win
