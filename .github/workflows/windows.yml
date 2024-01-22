@@ -13,12 +13,32 @@ jobs:
       - name: Setup msys
         uses: msys2/setup-msys2@v2
 
-      - name: Run build script
-        run: |
-          bash ./ci/windows/build_windows_tkgl.sh
+      - name: Init MSVC
+        uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Save artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: TkGL_package
-          path: ./dist
+      - name: Download Tcl and Tk source code with bash
+        run: ci/windows/fetch_tcltk.sh
+        shell: bash
+
+      - name: Build Tcl8 with powershell
+        run: |
+          &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
+          if ($lastexitcode -ne 0) {
+             throw "nmake exit code for Tcl 8: $lastexitcode"
+          }
+          &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
+        working-directory: tcl8/win
+
+      - name: Build Tk with powershell
+        run: |
+          &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
+          if ($lastexitcode -ne 0) {
+             throw "nmake exit code for Tk 8: $lastexitcode"
+          }
+          &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
+        working-directory: tcl8/win
+
+      - name: List directory with bash
+        run: |
+          ls -l
+        shell: bash
