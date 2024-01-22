@@ -20,7 +20,7 @@ jobs:
         run: ci/windows/fetch_tcltk.sh
         shell: bash
 
-      - name: Build Tcl8 with powershell
+      - name: Build Tcl 8 with powershell
         run: |
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
           if ($lastexitcode -ne 0) {
@@ -29,7 +29,7 @@ jobs:
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
         working-directory: tcl8/win
 
-      - name: Build Tk with powershell
+      - name: Build Tk 8 with powershell
         run: |
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
           if ($lastexitcode -ne 0) {
@@ -38,7 +38,25 @@ jobs:
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
         working-directory: tcl8/win
 
+      - name: Build Tcl 9 with powershell
+        run: |
+          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
+          if ($lastexitcode -ne 0) {
+             throw "nmake exit code for Tcl 8: $lastexitcode"
+          }
+          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
+        working-directory: tcl9/win
+
+      - name: Build Tk 9 with powershell
+        run: |
+          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
+          if ($lastexitcode -ne 0) {
+             throw "nmake exit code for Tk 8: $lastexitcode"
+          }
+          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
+        working-directory: tcl9/win
+
       - name: List directory with bash
         run: |
-          ls -l
+          ls -l TclTk*
         shell: bash
