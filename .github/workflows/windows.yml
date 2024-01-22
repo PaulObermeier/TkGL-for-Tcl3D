@@ -13,14 +13,9 @@ jobs:
       - name: Setup msys
         uses: msys2/setup-msys2@v2
 
-      - name: Setup Tcl and Tk build directories
+      - name: Run build script
         run: |
           bash ./ci/windows/build_windows_tkgl.sh
-
-      - name: Run .bat scripts
-        run: |
-          cmd<./ci/windows/build_windows_tcltk.bat
-          cmd<./ci/windows/build_windows_tkgl.bat
 
       - name: Save artifacts
         uses: actions/upload-artifact@v3
