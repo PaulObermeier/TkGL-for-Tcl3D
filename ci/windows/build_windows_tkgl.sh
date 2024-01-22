@@ -2,8 +2,8 @@
 set -e
 TCL8_VERSION=8.6.13
 TCL9_VERSION=9.0b1
-WGET=/c/msys64/usr/bin/wget
-CMD=/c/msysy64/usr/bin/cmd
+WGET=/c/msys64/usr/bin/wget -nv
+CMD=/c/msys64/usr/bin/cmd
 if [ ! -e tcl$TCL8_VERSION-src.tar.gz ] ; then
     $WGET https://prdownloads.sourceforge.net/tcl/tcl$TCL8_VERSION-src.tar.gz
 fi
