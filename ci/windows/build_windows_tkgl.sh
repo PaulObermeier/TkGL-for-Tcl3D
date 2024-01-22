@@ -26,8 +26,7 @@ mv tcl$TCL9_VERSION tcl9
 tar xfz tk$TCL9_VERSION-src.tar.gz
 mv tk$TCL9_VERSION tk9
 
-$CMD < ci/windows/build_windows_tcltk.bat
 $CMD < ci/windows/build_windows_tkgl.bat
-rm -rf dist
-mkdir -p dist/Tkgl1.0
-mv win/Release*/*.* Tkgl1.0
+#rm -rf dist
+#mkdir -p dist/Tkgl1.0
+#mv win/Release*/*.* Tkgl1.0
