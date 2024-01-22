@@ -63,7 +63,7 @@ jobs:
           &nmake -f makefile.vc clean
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
-          working-directory: win
+        working-directory: win
 
       - name: List directory with bash
         run: |
