@@ -5,7 +5,7 @@ TCL9_VERSION=9.0b1
 WGET="/c/msys64/usr/bin/wget -nv"
 CMD=/c/msys64/usr/bin/cmd
 if [ ! -e tcl$TCL8_VERSION-src.tar.gz ] ; then
-    $WGEThttps://prdownloads.sourceforge.net/tcl/tcl$TCL8_VERSION-src.tar.gz
+    $WGET https://prdownloads.sourceforge.net/tcl/tcl$TCL8_VERSION-src.tar.gz
 fi
 if [ ! -e tk$TCL8_VERSION-src.tar.gz ]; then
     $WGET https://prdownloads.sourceforge.net/tcl/tk$TCL8_VERSION-src.tar.gz
