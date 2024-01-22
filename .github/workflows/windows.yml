@@ -18,10 +18,9 @@ jobs:
           bash ./ci/windows/build_windows_tkgl.sh
 
       - name: Run .bat scripts
-        shell: cmd
         run: |
-	  ./ci/windows/build_windows_tcltk.bat
-          ./ci/windows/build_windows_tkgl.bat
+	  cmd<./ci/windows/build_windows_tcltk.bat
+          cmd<./ci/windows/build_windows_tkgl.bat
 
       - name: Save artifacts
         uses: actions/upload-artifact@v3
