@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   build_package:
-    name: Build Tcl extension for Tcl 8 and 9 on Windows
+    name: Build TkGL extension for Tcl 8 and 9 on Windows
     runs-on: windows-2022
     steps:
       - name: Checkout
@@ -63,7 +63,14 @@ jobs:
         shell: cmd
         working-directory: win
 
-      - name: List directory with bash
+      - name: Assemble the package
         run: |
-          ls -l win/Release*
+          mkdir -p dist/TkGL1.0
+          cp win/Release*/*.* dist/TkGL1.0
         shell: bash
+
+      - name: Save artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: TkGL_package
+          path: ./dist
