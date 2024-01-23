@@ -1765,8 +1765,8 @@ default-shell: default-setup $(PROJECT)
 
 # Note: don't use $** in below rule because there may be other dependencies
 # and only the "main" rc must be passed to the resource compiler
-### BREAKS CI ##$(TMP_DIR)\$(PROJECT).res: $(RCDIR)\$(PROJECT).rc
-###           ##	$(RESCMD) $(RCDIR)\$(PROJECT).rc
+$(TMP_DIR)\$(PROJECT).res: $(RCDIR)\$(PROJECT).rc
+	$(RESCMD) $(RCDIR)\$(PROJECT).rc
 
 !else
 
