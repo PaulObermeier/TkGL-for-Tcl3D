@@ -58,11 +58,11 @@ jobs:
 
       - name: Build TkGL for Tcl/Tk 8 and 9
         run: |
-          &nmake TCLDIR=..\..\tcl8 TKDIR=..\..\tk8 -f makefile.vc
-          &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
-          &nmake -f makefile.vc clean
-          &nmake TCLDIR=..\..\tcl9 TKDIR=..\..\tk9 -f makefile.vc
-          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
+          nmake TCLDIR=..\..\tcl8 TKDIR=..\..\tk8 -f makefile.vc
+          nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
+          nmake -f makefile.vc clean
+          nmake TCLDIR=..\..\tcl9 TKDIR=..\..\tk9 -f makefile.vc
+          nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
         shell: cmd
         working-directory: win
 
