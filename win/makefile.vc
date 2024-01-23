@@ -51,7 +51,7 @@ $(ROOT)\manifest.uuid:
    /c/msys64/usr/bin/git rev-parse HEAD >>$(ROOT)\manifest.uuid
 
 $(TMP_DIR)\tkglUuid.h:	$(ROOT)\manifest.uuid
-	copy $(WIN_DIR)\tkglUuid.h.in+$(ROOT)\manifest.uuid $(TMP_DIR)\tkglUuid.h
+	copy $(WIN_DIR)\tkglUuid.h.in $(ROOT)\manifest.uuid $(TMP_DIR)\tkglUuid.h
 
 
 # The default install target only installs binaries and scripts so add
