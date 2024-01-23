@@ -20,7 +20,7 @@
 PROJECT = Tkgl
 
 PROJECT_REQUIRES_TK = 1
-PRJ_LIBS =
+PRJ_LIBS = opengl32.lib glu32.lib
 
 
 !include "rules-ext.vc"
