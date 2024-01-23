@@ -53,16 +53,15 @@ jobs:
           if ($lastexitcode -ne 0) {
              throw "nmake exit code for Tk 9: $lastexitcode"
           }
-          Copy-Item "..\..\tk8\win\Release_AMD64_VC1937\wish86t.exe" -Destination "Release_AMD64_VC1937\wish90t.exe"
-          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
+          ###&nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
         working-directory: tk9/win
 
       - name: Build TkGL for Tcl/Tk 8 and 9
         run: |
-          &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc
+          &nmake TCLDIR=..\..\tcl8 TKDIR=..\..\tk8 -f makefile.vc
           &nmake INSTALLDIR=..\..\TclTk8 -f makefile.vc install
           &nmake -f makefile.vc clean
-          &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc
+          &nmake TCLDIR=..\..\tcl9 TKDIR=..\..\tk9 -f makefile.vc
           &nmake INSTALLDIR=..\..\TclTk9 -f makefile.vc install
         working-directory: win
 
