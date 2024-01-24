@@ -1,3 +1,14 @@
+/*
+ * tkglPlatform.h (for X11-based systems) --
+ *
+ * Copyright (C) 2024, Marc Culler, Nathan Dunfield, Matthias Goerner
+ *
+ * This file is part of the TkGL project.  TkGL is derived from Togl, which
+ * was written by Brian Paul, Ben Bederson and Greg Couch.  TkGL is licensed
+ * under the Tcl license.  The terms of the license are described in the file
+ * "license.terms" which should be included with this distribution.
+ */
+
 #define TKGL_X11 1
 
 /* sudo apt install libgl1-mesa-dev might produce the headers you need. */

@@ -12,39 +12,38 @@ mkdir -p dist/Tkgl1.0
 rm -rf tcl9 tk9 tcl8 tk8
 mkdir tcl9 tk9 tcl8 tk8
 
-echo downloading tcl/tk source ...
-wget --no-check-certificate -O tcl9.tar.gz $TCL9_URL
-wget --no-check-certificate -O tk9.tar.gz $TK9_URL
-echo extracting source ...
-tar xf tcl9.tar.gz --directory=tcl9 --strip-components=1
-tar xf tk9.tar.gz --directory=tk9 --strip-components=1
-cd tcl9
-echo building tcl9 ...
-make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
-cd ../tk9
-echo building tk9 ...
-make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
-cd ..
-cp ci/macOS/mac_configure configure
-./configure --with-tcl=build/tcl/Tcl.framework --with-tk=build/tk/Tk.framework
-make
-mv libtcl9Tkgl1.0.dylib Tkgl1.0
-rm -rf build
+if ! [ -e tcl9.tar.gz ] || ! [ -e tcl9 ] ; then
+    wget --no-check-certificate -O tcl9.tgz $TCL9_URL
+    tar xf tcl9.tgz --directory=tcl9 --strip-components=1
+fi
+if ! [ -e tk9.tar.gx $Tk9_URL ] || ! [ -e tk9 ] ; then
+    wget --no-check-certificate -O tk9.tar.gz $TK9_URL
+    tar xf tk9.tar.gz --directory=tk9 --strip-components=1
+fi
+cd tcl9/macosx
+./configure
+cd ../../tk9/macosx
+./configure
+cd ../..
 
-echo downloading tcl/tk source ...
-wget --no-check-certificate -O tcl8.tar.gz $TCL8_URL
-wget --no-check-certificate -O tk8.tar.gz $TK8_URL
-echo extracting source ...
-tar xf tcl8.tar.gz --directory=tcl8 --strip-components=1
-tar xf tk8.tar.gz --directory=tk8 --strip-components=1
-cd tcl8
-echo building tcl8 ...
-make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
-cd ../tk8
-echo building tk8 ...
-make -j4 CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9" -C macosx
-cd ..
-./configure --with-tcl=build/tcl/Tcl.framework --with-tk=build/tk/Tk.framework
+if ! [ -e tcl8.tar.gz ] || ! [ -e tcl8 ] ; then
+    wget --no-check-certificate -O tcl8.tgz $TCL9_URL
+    tar xf tcl8.tgz --directory=tcl8 --strip-components=1
+fi
+if ! [ -e tk8.tar.gx $Tk8_URL ] || ! [ -e tk8 ] ; then
+    wget --no-check-certificate -O tk8.tgz $TK9_URL
+    tar xf tk8.tgz --directory=tk8 --strip-components=1
+fi
+cd tcl8/macosx
+./configure
+cd ../../tk8/macosx
+./configure
+cd ../..
+cp ci/macOS/mac_configure configure
+./configure --with-tcl=tcl8/macosx --with-tk8/macosx
+make
+./configure --with-tcl=tcl9/macosx --with-tk=tk9/macosx
 make
 mv libTkgl1.0.dylib dist/Tkgl1.0
+mv libtcl9Tkgl1.0.dylib Tkgl1.0
 mv pkgIndex.tcl dist/Tkgl1.0
