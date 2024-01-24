@@ -23,17 +23,20 @@ tar xf tcl8.tar.gz --directory=tcl8 --strip-components=1
 tar xf tk8.tar.gz --directory=tk8 --strip-components=1
 tar xf tcl9.tar.gz --directory=tcl9 --strip-components=1
 tar xf tk9.tar.gz --directory=tk9 --strip-components=1
-
-echo configuring source directories
+echo building tcl and tk
 cd tcl8/unix
 ./configure
+make -j4
 cd ../../tk8/unix
 ./configure --with-tcl=../../tcl8/unix
+make -j4
 cd ../..
 cd tcl9/unix
 ./configure
+make -j4
 cd ../../tk9/unix
 ./configure --with-tcl=../../tcl9/unix
+make -j4
 cd ../..
 cp ci/linux/linux_configure configure
 echo building for tcl/tk 8
