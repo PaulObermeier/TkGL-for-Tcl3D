@@ -37,10 +37,10 @@ fi
 cd tcl8/macosx
 ./configure
 cd ../../tk8/macosx
-./configure
+./configure --with-tcl=../../tcl8
 cd ../..
 cp ci/macOS/mac_configure configure
-./configure --with-tcl=tcl8/macosx --with-tk8/macosx
+./configure --with-tcl=tcl8/macosx --with-tk=tk8/macosx
 make
 ./configure --with-tcl=tcl9/macosx --with-tk=tk9/macosx
 make
