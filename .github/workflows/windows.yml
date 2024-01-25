@@ -72,5 +72,5 @@ jobs:
       - name: Save artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: TkGL_package
+          name: TkGL_pkg_windows
           path: ./dist
