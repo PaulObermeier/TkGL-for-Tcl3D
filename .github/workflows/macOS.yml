@@ -19,7 +19,7 @@ jobs:
           bash ./ci/macOS/build_mac_tkgl.sh
 
       - name: Save artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: TkGL_pkg_macOS
           path: ./dist
