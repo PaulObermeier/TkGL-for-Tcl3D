@@ -831,7 +831,9 @@ void Tkgl_FreeResources(
 void
 Tkgl_WorldChanged(
     void* instanceData){
+#if 0
     printf("WorldChanged\n");
+#endif
 }
 
 int
@@ -839,7 +841,9 @@ Tkgl_TakePhoto(
     Tkgl *tkglPtr,
     Tk_PhotoHandle photo)
 {
+#if 0
     printf("TakePhoto\n");
+#endif
     return TCL_OK;
 }
 
@@ -849,7 +853,9 @@ Tkgl_CopyContext(
     const Tkgl *to,
     unsigned mask)
 {
+#if 0
     printf("CopyContext\n");
+#endif
     return TCL_OK;
 }
 
