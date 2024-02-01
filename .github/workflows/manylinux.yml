@@ -1,0 +1,29 @@
+name: linux
+
+on: [push]
+
+jobs:
+  build_package:
+    name: Build Tcl extension for Tcl 8 and 9 on manylinux_2014
+    runs-on: ubuntu-latest
+
+    container:
+      image: quay.io/pypa/manylinux2014_x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: install wget
+        run:
+          yum install -y wget zip
+
+      - name: Run build script
+        run: |
+          bash ./ci/linux/build_linux_tkgl.sh
+
+      - name: Save artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: TkGL_pkg_linux
+          path: ./dist
