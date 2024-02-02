@@ -411,26 +411,40 @@ tkgl_describePixelFormat(Tkgl *tkglPtr)
  * visual id of the visualInfo, which plays the role of a pixel format, is
  * saved in the pixelFormat field of the widget record.
  *
- *  Returns a standard Tcl result.
+ * This function is called as an idle task, or as a timer handler.
  */
 
-/* static helper function defined below. */
-static Window CreateRenderingSurface(Tkgl *tkglPtr);
-
-static Window CreateRenderingSurface(
-     Tkgl   *tkglPtr)
+static void CreateRenderingSurface(
+     void *clientData)
 {
+    Tkgl *tkglPtr = (Tkgl *) clientData;
     Tk_Window tkwin = tkglPtr->tkwin;
     Display *dpy;
     Colormap cmap;
     int     scrnum;
-    Window parent = Tk_WindowId(Tk_Parent(tkglPtr->tkwin)); 
+    Window parent = Tk_WindowId(Tk_Parent(tkwin)); 
     Window  window = None;
     XSetWindowAttributes swa;
-    int     width, height;
+ 
+    /*
+     * We can't create the rendering surface until the parent window exists.
+     */
 
-    if (tkglPtr->badWindow) {
-        return Tk_MakeWindow(tkwin, parent);
+    if (parent == None) {
+	/* Reschedule this idle task to run again later. */
+	if (tkglPtr->timerToken) {
+	    Tcl_DeleteTimerHandler(tkglPtr->timerToken);
+	    tkglPtr->timerToken = None;
+	}
+	tkglPtr->timerToken = Tcl_CreateTimerHandler(20,
+		    CreateRenderingSurface, clientData);
+	tkglPtr->badWindow++;
+	return;
+    }
+    if (tkglPtr->badWindow > 5) {
+	/* Still no parent after 5 attempts.  Give up. */
+        tkglPtr->surface = Tk_MakeWindow(tkwin, parent);
+	return;
     }
 
     /* for color index mode photos */
@@ -529,7 +543,8 @@ static Window CreateRenderingSurface(
             /* A Tcl result will have been set in tkgl_createPbuffer */
             goto error;
         }
-        return window;
+        tkglPtr->surface = window;
+	return;
     }
 
     /*
@@ -558,33 +573,42 @@ static Window CreateRenderingSurface(
         }
     }
 
-    /* Make sure Tk knows to switch to the new colormap when the cursor is over
-     * this window when running in color index mode. */
+    /*
+     * Make sure Tk knows to switch to the new colormap when the cursor is over
+     * this window when running in color index mode.
+     */
+
     (void) Tk_SetWindowVisual(tkwin, tkglPtr->visInfo->visual,
             tkglPtr->visInfo->depth, cmap);
     swa.background_pixmap = None;
     swa.border_pixel = 0;
     swa.colormap = cmap;
     swa.event_mask = ALL_EVENTS_MASK;
-    if (tkglPtr->pBufferFlag) {
-        width = height = 1;
-    } else {
-        width = tkglPtr->width;
-        height = tkglPtr->height;
-    }
-    window = XCreateWindow(dpy, parent,
-            0, 0, width, height,
+
+    /*
+     * Create the Tkgl X window with width and height equal to 1.
+     * It will be resized when the widget is mapped.
+     */
+
+    window = XCreateWindow(dpy, parent, 0, 0, 1, 1, //width, height,
             0, tkglPtr->visInfo->depth, InputOutput, tkglPtr->visInfo->visual,
             CWBackPixmap | CWBorderPixel | CWColormap | CWEventMask, &swa);
-    /* Make sure window manager installs our colormap */
+
+    /*
+     * Ask the window manager to install our colormap
+     */
+    
     (void) XSetWMColormapWindows(dpy, window, &window, 1);
+
+    /*
+     * See if we requested single buffering but had to accept a double
+     * buffered visual.  If so, set the GL draw buffer to be the front buffer
+     * to simulate single buffering.
+     */
 
     if (!tkglPtr->doubleFlag) {
         int     dbl_flag;
 
-        /* See if we requested single buffering but had to accept a double
-         * buffered visual.  If so, set the GL draw buffer to be the front
-         * buffer to simulate single buffering. */
         if (glXGetConfig(dpy, tkglPtr->visInfo, GLX_DOUBLEBUFFER, &dbl_flag)) {
             if (dbl_flag) {
                 glXMakeCurrent(dpy, window, tkglPtr->context);
@@ -593,6 +617,7 @@ static Window CreateRenderingSurface(
             }
         }
     }
+
 #if TKGL_USE_OVERLAY
     if (tkglPtr->overlayFlag) {
         if (SetupOverlay(tkgl) == TCL_ERROR) {
@@ -601,6 +626,7 @@ static Window CreateRenderingSurface(
         }
     }
 #endif
+
     if (!tkglPtr->rgbaFlag) {
         int     index_size;
         GLint   index_bits;
@@ -620,6 +646,7 @@ static Window CreateRenderingSurface(
             tkglPtr->blueMap = (GLfloat *) calloc(index_size, sizeof (GLfloat));
         }
     }
+
 #ifdef HAVE_AUTOSTEREO
     if (tkglPtr->stereo == TKGL_STEREO_NATIVE) {
         if (!tkglPtr->as_initialized) {
@@ -638,11 +665,12 @@ static Window CreateRenderingSurface(
         }
     }
 #endif
-    return window;
+
+    tkglPtr->surface = window;
+    return;
 
   error:
     tkglPtr->badWindow = True;
-    return window;
 }
 
 int
@@ -681,7 +709,7 @@ Tkgl_CreateGLContext(
 	return TCL_ERROR;
     }
     tkglPtr->context = context;
-    tkglPtr->surface = CreateRenderingSurface(tkglPtr);
+    Tcl_DoWhenIdle(CreateRenderingSurface, (void *)tkglPtr);
     return TCL_OK;
 }
 

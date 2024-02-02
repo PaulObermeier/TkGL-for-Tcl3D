@@ -128,6 +128,8 @@ typedef struct Tkgl {
     GLXPbuffer pbuf;
     Window surface;             /* rendering surface for the context */
     GLXFBConfig fbcfg;          /* cached FBConfig */
+    Tcl_TimerToken timerToken;
+
 #elif defined(TKGL_NSOPENGL)
     NSOpenGLContext *context;
     NSOpenGLPixelFormat *pixelFormat;
