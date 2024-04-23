@@ -154,6 +154,20 @@ TkglObjCmd(
     if (TkglConfigure(interp, tkglPtr) != TCL_OK) {
 	goto error;
     }
+
+    /* If defined, call Create and Reshape callbacks. */
+    if (tkglPtr->createProc) {
+        if (Tkgl_CallCallback(tkglPtr, tkglPtr->createProc) != TCL_OK) {
+            goto error;
+        }
+    }
+
+    if (tkglPtr->reshapeProc) {
+        if (Tkgl_CallCallback(tkglPtr, tkglPtr->reshapeProc) != TCL_OK) {
+            goto error;
+        }
+    }
+
     /* Add this widget to the global list. */
     addToList(tkglPtr);
     Tcl_SetObjResult(interp,
@@ -589,6 +603,12 @@ TkglObjEventProc(
 	tkglPtr->height = Tk_Height(tkglPtr->tkwin);
 	XResizeWindow(Tk_Display(tkglPtr->tkwin), Tk_WindowId(tkglPtr->tkwin),
 		      tkglPtr->width, tkglPtr->height);
+        if (tkglPtr->reshapeProc) {
+            if (Tkgl_CallCallback(tkglPtr, tkglPtr->reshapeProc) != TCL_OK) {
+                /* TODO: Error handling. */
+                printf("Error in Reshape callback\n");
+            }
+	}
 	if (!tkglPtr->updatePending) {
 	    Tcl_DoWhenIdle(TkglDisplay, tkglPtr);
 	    tkglPtr->updatePending = 1;
