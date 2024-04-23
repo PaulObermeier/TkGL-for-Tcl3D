@@ -95,8 +95,9 @@ TEA_ADD_TCL_SOURCES([])
 
 TEA_ADD_INCLUDES([-I\"${srcdir}/generic\"])
 if test "${TEA_PLATFORM}" == "windows" ; then
-    TEA_ADD_SOURCES([tkglWinGL.c])
+    TEA_ADD_SOURCES([tkglWGL.c colormap.c])
     TEA_ADD_INCLUDES([-I\"${srcdir}/win\"])
+    TEA_ADD_LIBS([glu32.lib opengl32.lib gdi32.lib])
 else
     if test "${TEA_WINDOWINGSYSTEM}" = "x11"; then
         TEA_ADD_SOURCES([tkglGLX.c])
