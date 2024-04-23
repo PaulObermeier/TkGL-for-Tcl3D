@@ -93,7 +93,6 @@ typedef struct Tkgl {
     const char *shareContext;   /* name (ident) to share OpenGL context with */
     const char *ident;          /* User's identification string */
     void    *clientData;        /* Pointer to user data */
-    Bool    UpdatePending;      /* Should normal planes be redrawn? */
     Tcl_Obj *createProc;        /* Callback when widget is realized */
     Tcl_Obj *displayProc;       /* Callback when widget is redrawn */
     Tcl_Obj *reshapeProc;       /* Callback when window size changes */

@@ -540,8 +540,8 @@ ERROR
 static void
 TkglPostRedisplay(Tkgl *tkglPtr)
 {
-    if (!tkglPtr->UpdatePending) {
-        tkglPtr->UpdatePending = True;
+    if (!tkglPtr->updatePending) {
+        tkglPtr->updatePending = True;
         Tcl_DoWhenIdle(TkglDisplay, (void *) tkglPtr);
     }
 }
