@@ -215,7 +215,7 @@ TkglWidgetObjCmd(
 	"hideoverlay", "postredisplayoverlay", "renderoverlay",
         "existsoverlay", "ismappedoverlay", "getoverlaytransparentvalue",
         "drawbuffer", "clear", "frustum", "ortho", "numeyes",
-	"contexttag", "copycontextto",
+	"contexttag", "copycontextto", "width", "height",
         NULL
     };
     enum
@@ -229,7 +229,8 @@ TkglWidgetObjCmd(
         TKGL_EXISTSOVERLAY, TKGL_ISMAPPEDOVERLAY,
         TKGL_GETOVERLAYTRANSPARENTVALUE,
         TKGL_DRAWBUFFER, TKGL_CLEAR, TKGL_FRUSTUM, TKGL_ORTHO,
-        TKGL_NUMEYES, TKGL_CONTEXTTAG, TKGL_COPYCONTEXTTO
+        TKGL_NUMEYES, TKGL_CONTEXTTAG, TKGL_COPYCONTEXTTO,
+	TKGL_WIDTH, TKGL_HEIGHT
     };
     Tcl_Obj *resultObjPtr;
     int index;
@@ -507,6 +508,22 @@ ERROR
 		break;
 	    }
 	    result = Tkgl_CopyContext(tkglPtr, to, mask);
+	}
+	break;
+    case TKGL_WIDTH:
+	if (objc == 2) {
+	    Tcl_SetObjResult(interp, Tcl_NewIntObj(tkglPtr->width));
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
+	}
+	break;
+    case TKGL_HEIGHT:
+	if (objc == 2) {
+	    Tcl_SetObjResult(interp, Tcl_NewIntObj(tkglPtr->height));
+	} else {
+	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    result = TCL_ERROR;
 	}
 	break;
     default:
