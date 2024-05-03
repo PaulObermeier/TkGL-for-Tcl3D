@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+TKGL_VERSION=1.1
 TCL8_SOURCE=tcl8.6.13-src.tar.gz
 TCL9_SOURCE=tcl9.0b1-src.tar.gz
 TK8_SOURCE=tk8.6.13-src.tar.gz
@@ -10,7 +10,7 @@ TK8_URL=https://prdownloads.sourceforge.net/tcl/$TK8_SOURCE
 TCL9_URL=https://prdownloads.sourceforge.net/tcl/$TCL9_SOURCE
 TK9_URL=https://prdownloads.sourceforge.net/tcl/$TK9_SOURCE
 
-mkdir -p dist/Tkgl1.0
+mkdir -p dist/Tkgl$TKGL_VERSION
 rm -rf tcl8 tk8 tcl9 tk9
 mkdir tcl8 tk8 tcl9 tk9
 
@@ -42,7 +42,7 @@ cd ..
 mv build build8
 ./configure --with-tcl=build8/tcl/Tcl.framework --with-tk=build8/tk/Tk.framework
 make CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9"
-mv libTkgl1.0.dylib dist/Tkgl1.0
+mv libTkgl$TKGL_VERSION.dylib dist/Tkgl$TKGL_VERSION
 
 cd tcl9
 make -j4 -C macosx CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9"
@@ -52,5 +52,5 @@ cd ..
 mv build build9
 ./configure --with-tcl=build9/tcl/Tcl.framework --with-tk=build9/tk/Tk.framework
 make CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.9"
-mv libtcl9Tkgl1.0.dylib dist/Tkgl1.0
-mv pkgIndex.tcl dist/Tkgl1.0
+mv libtcl9Tkgl$TKGL_VERSION.dylib dist/Tkgl$TKGL_VERSION
+mv pkgIndex.tcl dist/Tkgl$TKGL_VERSION
