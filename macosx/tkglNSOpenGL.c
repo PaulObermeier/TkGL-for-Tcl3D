@@ -630,6 +630,37 @@ Tkgl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData)
 }
 
 /* 
+ * Tkgl_MapWidget
+ *
+ *    Called when MapNotify events are received.
+ */
+
+void
+Tkgl_MapWidget(void *instanceData)
+{
+    Tkgl *tkgl = (Tkgl *) instanceData;
+    if (!tkgl->pBufferFlag) {
+	[tkgl->context setView:tkgl->nsview];
+	[tkgl->nsview setHidden:NO];
+	SetMacBufRect(tkgl);
+    }
+}
+
+/* 
+ * Tkgl_UnmapWidget
+ *
+ *    Called when UnmapNotify events are received.
+ */
+
+void
+Tkgl_UnmapWidget(void *instanceData)
+{
+    Tkgl *tkgl = (Tkgl *) instanceData;
+//    [tkgl->context clearDrawable];
+    [tkgl->nsview setHidden:YES];
+}
+
+/* 
  * Tkgl_WorldChanged
  *
  *    Add support for setgrid option.
@@ -737,7 +768,7 @@ Tkgl_MakeCurrent(const Tkgl *tkglPtr)
 {
     if (tkglPtr != NULL && tkglPtr->context != NULL) {
         [tkglPtr->context makeCurrentContext];
-	// If our context is in use by another view or pixel buffer,
+	// In case our context is in use by another view or pixel buffer,
 	// reassign it to our view or pixel buffer.
         if (FindTkglWithSameContext(tkglPtr) != NULL) {
             if (!tkglPtr->pBufferFlag) {

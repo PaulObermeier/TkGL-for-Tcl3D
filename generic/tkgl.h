@@ -268,6 +268,8 @@ const char* Tkgl_GetExtensions(Tkgl *tkglPtr);
 void Tkgl_FreeResources(Tkgl *tkglPtr);
 int Tkgl_TakePhoto(Tkgl *tkglPtr, Tk_PhotoHandle photo);
 int Tkgl_CopyContext(const Tkgl *from, const Tkgl *to, unsigned mask);
+void Tkgl_MapWidget(ClientData instanceData);
+void Tkgl_UnmapWidget(ClientData instanceData);
 void Tkgl_WorldChanged(void* instanceData);
 
 /*
