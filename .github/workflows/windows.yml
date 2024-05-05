@@ -65,8 +65,8 @@ jobs:
 
       - name: Assemble the package
         run: |
-          mkdir -p dist/TkGL1.0
-          cp win/Release*/*.* dist/TkGL1.0
+          mkdir -p dist/TkGL1.1
+          cp win/Release*/*.* dist/TkGL1.1
         shell: bash
 
       - name: Save artifacts

@@ -644,6 +644,12 @@ TkglObjEventProc(
 	}
 	Tcl_EventuallyFree(tkglPtr, TCL_DYNAMIC);
 	break;
+    case MapNotify:
+	Tkgl_MapWidget(tkglPtr);
+	break;
+    case UnmapNotify:
+	Tkgl_UnmapWidget(tkglPtr);
+	break;
     }
 }
 

@@ -15,6 +15,8 @@
 
 void Tkgl_Update(const Tkgl *tkglPtr);
 Window Tkgl_MakeWindow(Tk_Window tkwin, Window parent, void* instanceData);
+void Tkgl_MapWidget(void *instanceData);
+void Tkgl_UnmapWidget(void *instanceData);
 void Tkgl_WorldChanged(void* instanceData);
 void Tkgl_MakeCurrent(const Tkgl *tkglPtr);
 void Tkgl_SwapBuffers(const Tkgl *tkglPtr);
@@ -856,6 +858,28 @@ void Tkgl_FreeResources(
 #  endif
 }
 
+/* 
+ * Tkgl_MapWidget
+ *
+ *    Called when MapNotify events are received.
+ */
+
+void
+Tkgl_MapWidget(void *instanceData)
+{
+}
+
+/* 
+ * Tkgl_UnmapWidget
+ *
+ *    Called when UnmapNotify events are received.
+ */
+
+void
+Tkgl_UnmapWidget(void *instanceData)
+{
+}
+
 void
 Tkgl_WorldChanged(
     void* instanceData){
@@ -863,7 +887,7 @@ Tkgl_WorldChanged(
     printf("WorldChanged\n");
 #endif
 }
-
+
 int
 Tkgl_TakePhoto(
     Tkgl *tkglPtr,

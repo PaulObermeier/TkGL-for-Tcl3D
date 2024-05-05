@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+TKGL_VERSION=1.1
 TCL8_VERSION=8.6.13
 TCL9_VERSION=9.0b1
 TCL8_URL=https://prdownloads.sourceforge.net/tcl/tcl$TCL8_VERSION-src.tar.gz
@@ -8,7 +8,7 @@ TK8_URL=https://prdownloads.sourceforge.net/tcl/tk$TCL8_VERSION-src.tar.gz
 TCL9_URL=https://prdownloads.sourceforge.net/tcl/tcl$TCL9_VERSION-src.tar.gz
 TK9_URL=https://prdownloads.sourceforge.net/tcl/tk$TCL9_VERSION-src.tar.gz
 
-mkdir -p dist/Tkgl1.0
+mkdir -p dist/Tkgl$TKGL_VERSION
 rm -rf tcl9 tk9 tcl8 tk8
 mkdir tcl9 tk9 tcl8 tk8
 
@@ -42,10 +42,10 @@ cp ci/linux/linux_configure configure
 echo building for tcl/tk 8
 ./configure --with-tcl=tcl8/unix --with-tk=tk8/unix
 make
-mv libTkgl1.0.so dist/Tkgl1.0
+mv libTkgl$TKGL_VERSION.so dist/Tkgl$TKGL_VERSION
 rm -rf build
 echo building for tcl/tk 9
 ./configure --with-tcl=tcl9/unix --with-tk=tk9/unix
 make
-mv libtcl9Tkgl1.0.so dist/Tkgl1.0
-mv pkgIndex.tcl dist/Tkgl1.0
+mv libtcl9Tkgl$TKGL_VERSION.so dist/Tkgl$TKGL_VERSION
+mv pkgIndex.tcl dist/Tkgl$TKGL_VERSION
